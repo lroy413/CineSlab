@@ -45,6 +45,10 @@
     --heading:#103A2C;
     --surface-app:#F1EFE8; --surface:#FFFFFF; --surface-alt:#ECE9E1; --surface-alt-hover:#E2DED3;
     --surface-rail:#EAE7DE; --surface-rail-hover:#E2DED3;
+    /* Floating glass nav. Translucent so the blur has something to work with;
+       the solid fallback below keeps it readable where backdrop-filter is off. */
+    --nav-glass:rgba(246,244,238,.72); --nav-glass-solid:#F0EDE5;
+    --nav-glass-border:rgba(16,58,44,.14); --nav-glass-shadow:rgba(28,40,34,.22);
     --note-bg:#EAF3EC; --note-border:#CDE3D2;
     --accent-soft-bg:#EAF3EC;
     --danger-hover-bg:rgba(200,60,60,.10);
@@ -58,6 +62,8 @@
     --heading:#FFFFFF;
     --surface-app:#0A0F0D; --surface:#121A16; --surface-alt:#18211C; --surface-alt-hover:#212C26;
     --surface-rail:#0A0F0D; --surface-rail-hover:#141C18;
+    --nav-glass:rgba(20,30,25,.66); --nav-glass-solid:#141E19;
+    --nav-glass-border:rgba(95,192,142,.20); --nav-glass-shadow:rgba(0,0,0,.50);
     --note-bg:#153025; --note-border:#264A3A;
     --accent-soft-bg:#12251C;
     --danger-hover-bg:rgba(226,110,110,.14);
@@ -892,27 +898,66 @@
     .home-screen{padding:24px 18px 90px;}
     .home-project-grid{grid-template-columns:1fr;}
 
-    /* bottom tab bar */
+    /* Floating glass tab bar.
+       It is position:fixed, which on its own caused the original iOS
+       standalone-PWA bug (the bar drifting up into content mid-scroll) — that
+       bug is a symptom of the DOCUMENT scrolling. Inside .app-shell the
+       document never scrolls (the shell is overflow:hidden and .layout scrolls
+       internally), so fixed is stable here. Fixed also resolves against the
+       visual viewport rather than the shell's computed height, so the bar stays
+       on screen even when iOS reports a dvh taller than the visible area —
+       which is what pushed it below the fold as a flex child. */
     .bottom-tabs{
-      display:flex; position:fixed; left:0; right:0; bottom:0; z-index:16;
-      background:var(--surface-rail); border-top:1px solid var(--line);
-      padding:6px 2px calc(6px + env(safe-area-inset-bottom));
+      display:flex; position:fixed; z-index:18;
+      left:max(12px, env(safe-area-inset-left));
+      right:max(12px, env(safe-area-inset-right));
+      bottom:calc(10px + env(safe-area-inset-bottom));
+      padding:7px 5px;
+      border-radius:20px;
+      background:var(--nav-glass-solid);
+      border:1px solid var(--nav-glass-border);
+      box-shadow:0 6px 24px -6px var(--nav-glass-shadow), 0 1px 0 rgba(255,255,255,.05) inset;
+      transform-origin:50% 100%;
+      transition:transform .26s cubic-bezier(.33,.9,.35,1), box-shadow .26s ease;
+      will-change:transform;
     }
-    .bottom-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 1px;color:var(--ink-mute);cursor:pointer;min-width:0;}
+    /* Only go translucent where the blur actually works — otherwise the solid
+       fallback above keeps the labels legible over scrolling content. */
+    @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+      .bottom-tabs{
+        background:var(--nav-glass);
+        -webkit-backdrop-filter:blur(18px) saturate(150%);
+        backdrop-filter:blur(18px) saturate(150%);
+      }
+    }
+    /* Shrinks while the content is moving, springs back when it stops. */
+    .bottom-tabs.nav-shrunk{
+      transform:scale(.93) translateY(3px);
+      box-shadow:0 3px 12px -6px var(--nav-glass-shadow);
+    }
+    @media (prefers-reduced-motion:reduce){
+      .bottom-tabs{transition:none;}
+      .bottom-tabs.nav-shrunk{transform:none;}
+    }
+    .bottom-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 1px;color:var(--ink-mute);cursor:pointer;min-width:0;border-radius:14px;}
     .bottom-tab .bt-icon{display:flex;}
     .bottom-tab .bt-label{font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.02em;text-transform:uppercase;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
     .bottom-tab.active{color:var(--chalk);}
 
     /* Fixed-height app shell: the in-project view fills the viewport and the
-       content scrolls INSIDE .layout, so the bottom nav is a normal flex
-       child instead of position:fixed. This avoids the iOS standalone-PWA
-       bug where a fixed bottom bar floats up into the content on scroll. */
+       content scrolls INSIDE .layout, so the document itself never scrolls. */
     #app.app-shell{height:100vh;height:100dvh;overflow:hidden;}
     #app.app-shell > header.slate{flex-shrink:0;}
     #app.app-shell .layout{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-    #app.app-shell .bottom-tabs{position:relative;left:auto;right:auto;bottom:auto;flex-shrink:0;}
-    main{padding-bottom:88px;}
-    .fab-add{bottom:calc(84px + env(safe-area-inset-bottom));}
+    /* Clear the floating bar: its own height plus the gap it sits above. */
+    main{padding-bottom:calc(96px + env(safe-area-inset-bottom));}
+    /* .layout is a flex row, so main is stretched to the container's height and
+       tall content overflows its box instead of growing it — which leaves that
+       padding-bottom trapped inside a box the content has already spilled past,
+       reserving nothing. align-self lets main size to its content so the
+       padding lands after the last row and the scroll range includes it. */
+    #app.app-shell main{align-self:flex-start;}
+    .fab-add{bottom:calc(96px + env(safe-area-inset-bottom));}
 
     /* bottom-sheet modals on mobile */
     .modal-overlay{align-items:flex-end;padding:0;}
@@ -7177,7 +7222,12 @@ function fitScriptScrollArea(){
   const wrap = document.querySelector('.script-wrap');
   if(!wrap) return;
   const bottomTabs = document.querySelector('.bottom-tabs');
-  const bottomReserve = (bottomTabs && getComputedStyle(bottomTabs).display !== 'none') ? bottomTabs.getBoundingClientRect().height : 0;
+  // Measure from the bar's TOP edge to the bottom of the viewport, not just its
+  // height — the bar now floats above the bottom, so the gap beneath it is part
+  // of the space the script page has to clear.
+  const bottomReserve = (bottomTabs && getComputedStyle(bottomTabs).display !== 'none')
+    ? Math.max(0, window.innerHeight - bottomTabs.getBoundingClientRect().top)
+    : 0;
   const page = document.querySelector('.script-page');
   if(page){
     const rect = page.getBoundingClientRect();
@@ -12922,6 +12972,29 @@ function renderGlossary(body){
   }
   // Capture so scroll events from the inner .layout (which don't bubble) are
   // still seen, alongside document scroll on the home/settings screens.
+  document.addEventListener('scroll', ()=>{
+    if(!ticking){ requestAnimationFrame(apply); ticking = true; }
+  }, {passive:true, capture:true});
+})();
+
+/* Floating tab bar shrinks while the content is moving and springs back once
+   it settles. There is no scrollend event on iOS Safari, so "stopped" is a
+   short idle timer that every scroll tick pushes forward. The bar is looked up
+   per event rather than cached because render() rewrites the DOM wholesale. */
+(function setupNavScrollShrink(){
+  let idle = null, ticking = false;
+  const SETTLE_MS = 180;
+  function apply(){
+    ticking = false;
+    const nav = document.querySelector('.bottom-tabs');
+    if(!nav) return;
+    nav.classList.add('nav-shrunk');
+    clearTimeout(idle);
+    idle = setTimeout(()=>{
+      const n = document.querySelector('.bottom-tabs');
+      if(n) n.classList.remove('nav-shrunk');
+    }, SETTLE_MS);
+  }
   document.addEventListener('scroll', ()=>{
     if(!ticking){ requestAnimationFrame(apply); ticking = true; }
   }, {passive:true, capture:true});
