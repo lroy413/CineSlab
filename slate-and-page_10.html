@@ -908,12 +908,12 @@
        on screen even when iOS reports a dvh taller than the visible area —
        which is what pushed it below the fold as a flex child. */
     .bottom-tabs{
-      display:flex; position:fixed; z-index:18;
+      display:flex; flex-direction:column; position:fixed; z-index:18;
       left:max(12px, env(safe-area-inset-left));
       right:max(12px, env(safe-area-inset-right));
       bottom:calc(10px + env(safe-area-inset-bottom));
-      padding:7px 5px;
-      border-radius:20px;
+      padding:0 0 3px;
+      border-radius:22px;
       background:var(--nav-glass-solid);
       border:1px solid var(--nav-glass-border);
       box-shadow:0 6px 24px -6px var(--nav-glass-shadow), 0 1px 0 rgba(255,255,255,.05) inset;
@@ -939,25 +939,65 @@
       .bottom-tabs{transition:none;}
       .bottom-tabs.nav-shrunk{transform:none;}
     }
-    .bottom-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 1px;color:var(--ink-mute);cursor:pointer;min-width:0;border-radius:14px;}
+    /* Horizontal scroller. overflow-x:auto forces overflow-y to compute as auto
+       too, so the raised home button can't spill outside — instead the track
+       carries top padding and the taller button grows up into it. */
+    .bt-scroll{
+      display:flex; align-items:flex-end; gap:2px;
+      overflow-x:auto; overflow-y:hidden;
+      padding:9px 6px 0;
+      scroll-snap-type:x proximity;
+      -webkit-overflow-scrolling:touch; scrollbar-width:none;
+      overscroll-behavior-x:contain;
+    }
+    .bt-scroll::-webkit-scrollbar{display:none;}
+    .bottom-tab{
+      flex:0 0 auto; width:70px;
+      display:flex; flex-direction:column; align-items:center; gap:3px;
+      padding:6px 1px; color:var(--ink-mute); cursor:pointer;
+      border-radius:14px; scroll-snap-align:center;
+    }
     .bottom-tab .bt-icon{display:flex;}
     .bottom-tab .bt-label{font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.02em;text-transform:uppercase;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
     .bottom-tab.active{color:var(--chalk);}
+
+    /* Today: the raised home button. The ring is painted in the bar's own
+       colour so the circle reads as punched through the glass. */
+    .bottom-tab.bt-home{width:78px;}
+    .bottom-tab.bt-home .bt-icon{
+      width:52px; height:52px; box-sizing:border-box;
+      display:flex; align-items:center; justify-content:center;
+      border-radius:50%; background:var(--tape); color:#fff;
+      border:4px solid var(--nav-glass-solid);
+      box-shadow:0 6px 16px -4px rgba(46,158,107,.55);
+      transition:transform .2s ease;
+    }
+    .bottom-tab.bt-home .bt-icon svg{width:23px;height:23px;}
+    .bottom-tab.bt-home.active{color:var(--chalk);}
+    .bottom-tab.bt-home:active .bt-icon{transform:scale(.94);}
+
+    /* Scroll-position dots. */
+    .bt-dots{display:flex;justify-content:center;align-items:center;gap:4px;padding:5px 0 2px;min-height:9px;}
+    .bt-dots i{width:5px;height:5px;border-radius:50%;background:var(--ink-mute);opacity:.32;transition:opacity .2s ease, width .2s ease;}
+    .bt-dots i.on{opacity:.85;width:13px;border-radius:3px;background:var(--chalk);}
 
     /* Fixed-height app shell: the in-project view fills the viewport and the
        content scrolls INSIDE .layout, so the document itself never scrolls. */
     #app.app-shell{height:100vh;height:100dvh;overflow:hidden;}
     #app.app-shell > header.slate{flex-shrink:0;}
     #app.app-shell .layout{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-    /* Clear the floating bar: its own height plus the gap it sits above. */
-    main{padding-bottom:calc(96px + env(safe-area-inset-bottom));}
+    /* Clear the floating bar: its measured height plus the gap it sits above.
+       --nav-h is written by setupBottomTabScroller() because the bar's height
+       depends on how many tabs there are and whether labels wrap; the literal
+       is only the pre-measurement fallback. */
+    main{padding-bottom:calc(var(--nav-h, 103px) + 30px + env(safe-area-inset-bottom));}
     /* .layout is a flex row, so main is stretched to the container's height and
        tall content overflows its box instead of growing it — which leaves that
        padding-bottom trapped inside a box the content has already spilled past,
        reserving nothing. align-self lets main size to its content so the
        padding lands after the last row and the scroll range includes it. */
     #app.app-shell main{align-self:flex-start;}
-    .fab-add{bottom:calc(96px + env(safe-area-inset-bottom));}
+    .fab-add{bottom:calc(var(--nav-h, 103px) + 30px + env(safe-area-inset-bottom));}
 
     /* bottom-sheet modals on mobile */
     .modal-overlay{align-items:flex-end;padding:0;}
@@ -5591,13 +5631,16 @@ function render(){
       <main id="mainView"></main>
     </div>
     <nav class="bottom-tabs">
-      ${bottomTabsFor(proj).map(t=>{
-        const isActive = t.view !== '__more__' && (state.view===t.view || effectiveNavView()===t.view);
-        return `<div class="bottom-tab ${isActive?'active':''}" data-view="${t.view}">
-          <span class="bt-icon">${t.icon}</span>
-          <span class="bt-label">${esc(t.label)}</span>
-        </div>`;
-      }).join('')}
+      <div class="bt-scroll" id="btScroll">
+        ${bottomTabsFor(proj).map(t=>{
+          const isActive = t.view !== '__more__' && (state.view===t.view || effectiveNavView()===t.view);
+          return `<div class="bottom-tab ${isActive?'active':''} ${t.home?'bt-home':''}" data-view="${t.view}">
+            <span class="bt-icon">${t.icon}</span>
+            <span class="bt-label">${esc(t.label)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="bt-dots" id="btDots" aria-hidden="true"></div>
     </nav>
   `;
 
@@ -5622,6 +5665,7 @@ function render(){
       render();
     };
   });
+  setupBottomTabScroller();
   document.querySelectorAll('.dept-btn[data-dept]').forEach(el=>{
     el.onclick = ()=>{
       const deptId = el.dataset.dept;
@@ -5818,9 +5862,25 @@ function quickMenuFor(proj){
   return picks;
 }
 function bottomTabsFor(proj){
-  const tabs = quickMenuFor(proj).map(v=>({view:v, label:labelForView(v), icon:iconForView(v)}));
-  tabs.push({view:'__more__', label:'More', icon:DEPT_ICONS.more});
-  return tabs;
+  /* The bar scrolls horizontally now, so it carries every tool the project
+     shows rather than a hard five. Today sits dead centre as the raised home
+     button. The user's picked tabs (wizard / Settings) flank it closest,
+     alternating outward, with the remaining tools further out — so the quick
+     menu still decides what's within thumb reach, it just no longer decides
+     what exists. 'More' rides at the far end. */
+  const picks = quickMenuFor(proj).filter(v => v !== 'dashboard');
+  const others = allToolsFlat()
+    .filter(t => t.view !== 'dashboard' && isToolVisible(t, proj) && !picks.includes(t.view))
+    .map(t => t.view);
+
+  const left = [], right = [];
+  picks.concat(others).forEach((v, i) => (i % 2 === 0 ? right.push(v) : left.unshift(v)));
+
+  const toTab = v => ({ view: v, label: labelForView(v), icon: iconForView(v) });
+  return left.map(toTab)
+    .concat([{ view: 'dashboard', label: 'Today', icon: iconForView('dashboard'), home: true }])
+    .concat(right.map(toTab))
+    .concat([{ view: '__more__', label: 'More', icon: DEPT_ICONS.more }]);
 }
 async function toggleMode(next){
   state.mode = next;
@@ -12977,6 +13037,52 @@ function renderGlossary(body){
   }, {passive:true, capture:true});
 })();
 
+/* Bottom-bar scroller: centre the active tab (Today on first paint) and keep
+   the page dots in sync. Called from render() because the DOM is rebuilt each
+   time, and the scroller's position resets with it. */
+function setupBottomTabScroller(){
+  const scroll = document.getElementById('btScroll');
+  const dots = document.getElementById('btDots');
+  if(!scroll || !dots) return;
+
+  function pageCount(){
+    return Math.max(1, Math.ceil(scroll.scrollWidth / Math.max(1, scroll.clientWidth)));
+  }
+  function paintDots(){
+    const pages = pageCount();
+    // A bar that fits entirely needs no dots at all.
+    if(pages < 2){ dots.innerHTML = ''; return; }
+    if(dots.childElementCount !== pages){
+      dots.innerHTML = Array.from({length:pages}, ()=>'<i></i>').join('');
+    }
+    const max = scroll.scrollWidth - scroll.clientWidth;
+    const ratio = max > 0 ? scroll.scrollLeft / max : 0;
+    const active = Math.round(ratio * (pages - 1));
+    [...dots.children].forEach((d,i)=>d.classList.toggle('on', i === active));
+  }
+
+  // Publish the bar's real height so main/.fab-add can reserve space for it —
+  // it varies with tab count and label wrapping, so a fixed number drifts.
+  const nav = scroll.closest('.bottom-tabs');
+  if(nav){
+    const h = Math.round(nav.getBoundingClientRect().height);
+    if(h > 0) document.documentElement.style.setProperty('--nav-h', h + 'px');
+  }
+
+  // Centre the tab for the current view, falling back to the home button.
+  const target = scroll.querySelector('.bottom-tab.active') || scroll.querySelector('.bt-home');
+  if(target){
+    const to = target.offsetLeft - (scroll.clientWidth - target.offsetWidth) / 2;
+    scroll.scrollLeft = Math.max(0, to);   // instant: this is initial placement, not a gesture
+  }
+  paintDots();
+
+  let ticking = false;
+  scroll.addEventListener('scroll', ()=>{
+    if(!ticking){ requestAnimationFrame(()=>{ paintDots(); ticking = false; }); ticking = true; }
+  }, {passive:true});
+}
+
 /* Floating tab bar shrinks while the content is moving and springs back once
    it settles. There is no scrollend event on iOS Safari, so "stopped" is a
    short idle timer that every scroll tick pushes forward. The bar is looked up
@@ -12995,7 +13101,10 @@ function renderGlossary(body){
       if(n) n.classList.remove('nav-shrunk');
     }, SETTLE_MS);
   }
-  document.addEventListener('scroll', ()=>{
+  document.addEventListener('scroll', (e)=>{
+    // The bar itself scrolls horizontally now; swiping through the tabs must
+    // not make the bar shrink away under your thumb.
+    if(e.target && e.target.nodeType === 1 && e.target.closest && e.target.closest('.bottom-tabs')) return;
     if(!ticking){ requestAnimationFrame(apply); ticking = true; }
   }, {passive:true, capture:true});
 })();
