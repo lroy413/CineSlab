@@ -945,39 +945,44 @@
     .bt-scroll{
       display:flex; align-items:flex-end; gap:2px;
       overflow-x:auto; overflow-y:hidden;
-      padding:9px 6px 0;
+      padding:6px 6px 0;
       scroll-snap-type:x proximity;
       -webkit-overflow-scrolling:touch; scrollbar-width:none;
       overscroll-behavior-x:contain;
     }
     .bt-scroll::-webkit-scrollbar{display:none;}
     .bottom-tab{
-      flex:0 0 auto; width:70px;
-      display:flex; flex-direction:column; align-items:center; gap:3px;
-      padding:6px 1px; color:var(--ink-mute); cursor:pointer;
+      flex:0 0 auto; width:66px;
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      padding:4px 1px; color:var(--ink-mute); cursor:pointer;
       border-radius:14px; scroll-snap-align:center;
     }
     .bottom-tab .bt-icon{display:flex;}
+    /* The glyphs carry width/height="17" attributes for the sidebar; at nav
+       scale that reads as a speck next to the home button, so size them here. */
+    .bottom-tab .bt-icon svg{width:23px;height:23px;}
     .bottom-tab .bt-label{font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:.02em;text-transform:uppercase;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
     .bottom-tab.active{color:var(--chalk);}
 
     /* Today: the raised home button. The ring is painted in the bar's own
-       colour so the circle reads as punched through the glass. */
-    .bottom-tab.bt-home{width:78px;}
+       colour so the circle reads as punched through the glass. Kept close to
+       the other tabs in scale — roughly 2x the glyph, not 3x — so the bar
+       reads as balanced rather than as one big button with satellites. */
+    .bottom-tab.bt-home{width:70px;}
     .bottom-tab.bt-home .bt-icon{
-      width:52px; height:52px; box-sizing:border-box;
+      width:44px; height:44px; box-sizing:border-box;
       display:flex; align-items:center; justify-content:center;
       border-radius:50%; background:var(--tape); color:#fff;
-      border:4px solid var(--nav-glass-solid);
-      box-shadow:0 6px 16px -4px rgba(46,158,107,.55);
+      border:3px solid var(--nav-glass-solid);
+      box-shadow:0 5px 14px -4px rgba(46,158,107,.55);
       transition:transform .2s ease;
     }
-    .bottom-tab.bt-home .bt-icon svg{width:23px;height:23px;}
+    .bottom-tab.bt-home .bt-icon svg{width:22px;height:22px;}
     .bottom-tab.bt-home.active{color:var(--chalk);}
     .bottom-tab.bt-home:active .bt-icon{transform:scale(.94);}
 
     /* Scroll-position dots. */
-    .bt-dots{display:flex;justify-content:center;align-items:center;gap:4px;padding:5px 0 2px;min-height:9px;}
+    .bt-dots{display:flex;justify-content:center;align-items:center;gap:4px;padding:3px 0 1px;min-height:7px;}
     .bt-dots i{width:5px;height:5px;border-radius:50%;background:var(--ink-mute);opacity:.32;transition:opacity .2s ease, width .2s ease;}
     .bt-dots i.on{opacity:.85;width:13px;border-radius:3px;background:var(--chalk);}
 
@@ -5862,25 +5867,29 @@ function quickMenuFor(proj){
   return picks;
 }
 function bottomTabsFor(proj){
-  /* The bar scrolls horizontally now, so it carries every tool the project
-     shows rather than a hard five. Today sits dead centre as the raised home
-     button. The user's picked tabs (wizard / Settings) flank it closest,
-     alternating outward, with the remaining tools further out — so the quick
-     menu still decides what's within thumb reach, it just no longer decides
-     what exists. 'More' rides at the far end. */
+  /* The bar scrolls horizontally and carries at most MAX_BAR_TOOLS tools plus
+     Today, which sits dead centre as the raised home button. The count is even
+     so the split is symmetric — an odd count, or a trailing 'More', would push
+     Today off-centre. Anything beyond the cap lives in the drawer, which the
+     header hamburger opens.
+
+     The user's picked tabs (wizard / Settings) come first and so flank Today
+     closest, alternating outward; the quick menu still decides what's within
+     thumb reach, it just no longer decides what exists. */
+  const MAX_BAR_TOOLS = 8;
   const picks = quickMenuFor(proj).filter(v => v !== 'dashboard');
   const others = allToolsFlat()
     .filter(t => t.view !== 'dashboard' && isToolVisible(t, proj) && !picks.includes(t.view))
     .map(t => t.view);
 
   const left = [], right = [];
-  picks.concat(others).forEach((v, i) => (i % 2 === 0 ? right.push(v) : left.unshift(v)));
+  picks.concat(others).slice(0, MAX_BAR_TOOLS)
+    .forEach((v, i) => (i % 2 === 0 ? right.push(v) : left.unshift(v)));
 
   const toTab = v => ({ view: v, label: labelForView(v), icon: iconForView(v) });
   return left.map(toTab)
     .concat([{ view: 'dashboard', label: 'Today', icon: iconForView('dashboard'), home: true }])
-    .concat(right.map(toTab))
-    .concat([{ view: '__more__', label: 'More', icon: DEPT_ICONS.more }]);
+    .concat(right.map(toTab));
 }
 async function toggleMode(next){
   state.mode = next;
