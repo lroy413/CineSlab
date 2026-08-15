@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"^\\\\s*\\\\\\(async \\\\\\)\\\\?function \\\\|^\\\\s*const [A-Za-z_$]* = \\\\\\(async \\\\\\)\\\\?\\(\\\\|^\\\\s*const [A-Za-z_$]* = \\\\\\(async \\\\\\)\\\\?function\" slate-and-page_10.html)",
+      "Bash(awk 'NR>=893 && NR<=12788' slate-and-page_10.html)",
+      "Bash(awk 'NR>=1267 && NR<=1340' slate-and-page_10.html)",
+      "Bash(awk 'NR>=9355' slate-and-page_10.html)",
+      "Bash(awk 'NR>=3212 && NR<=3300' slate-and-page_10.html)",
+      "Bash(awk 'NR>=5513 && NR<=5600' slate-and-page_10.html)",
+      "Bash(awk 'NR>=6170 && NR<=6260' slate-and-page_10.html)",
+      "Bash(awk 'NR>=893 && NR<=1030' slate-and-page_10.html)",
+      "Bash(awk 'NR>=1043 && NR<=1120' slate-and-page_10.html)",
+      "Bash(awk 'NR>=3991 && NR<=4060' slate-and-page_10.html)",
+      "Bash(awk 'NR>=1401 && NR<=1520' slate-and-page_10.html)",
+      "Bash(awk 'NR>=1504 && NR<=1620' slate-and-page_10.html)",
+      "Bash(awk 'NR>=3679 && NR<=3762' slate-and-page_10.html)",
+      "WebSearch",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://127.0.0.1:8778/slate-and-page_10.html\")",
+      "Bash(awk 'NR>=14 && NR<=70' slate-and-page_10.html)",
+      "mcp__plugin_cloudflare_cloudflare-api__execute"
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <filter id="pL" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="2" seed="7" result="broad"/>
+      <feColorMatrix in="broad" type="matrix" values="0 0 0 0 0.15  0 0 0 0 0.16  0 0 0 0 0.14  0 0 0 0.20 0" result="broadG"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" seed="19" result="fine"/>
+      <feColorMatrix in="fine" type="matrix" values="0 0 0 0 0.09  0 0 0 0 0.09  0 0 0 0 0.09  0 0 0 1.05 -0.55" result="fineG"/>
+      <feMerge><feMergeNode in="broadG"/><feMergeNode in="fineG"/></feMerge>
+    </filter>
+    <filter id="pG" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.010" numOctaves="2" seed="3" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.95  0 0 0 0.10 0" result="bl"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="2" seed="11" result="f"/>
+      <feColorMatrix in="f" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.75 -0.40" result="fd"/>
+      <feMerge><feMergeNode in="bl"/><feMergeNode in="fd"/></feMerge>
+    </filter>
+    <clipPath id="cS"><rect x="96" y="150" width="320" height="54" rx="10"/></clipPath>
+    <clipPath id="cBody"><rect x="96" y="214" width="320" height="168" rx="20"/></clipPath>
+    <clipPath id="cBadge"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#cBadge)">
+    <rect width="512" height="512" fill="#103A2C"/>
+    <rect width="512" height="512" filter="url(#pG)"/>
+    <g opacity="0.9">
+      <circle cx="50" cy="60" r="9" fill="#E9E4D8"/><circle cx="462" cy="54" r="7" fill="#C9A24B"/><circle cx="40" cy="300" r="7" fill="#8FA69A"/><circle cx="472" cy="288" r="6" fill="#E9E4D8"/><circle cx="60" cy="432" r="8" fill="#C9A24B"/><circle cx="452" cy="442" r="9" fill="#8FA69A"/><circle cx="250" cy="44" r="6" fill="#8FA69A"/><circle cx="150" cy="58" r="5" fill="#C9A24B"/><circle cx="362" cy="52" r="5" fill="#E9E4D8"/><circle cx="72" cy="182" r="6" fill="#C9A24B"/><circle cx="446" cy="180" r="7" fill="#E9E4D8"/><circle cx="470" cy="402" r="6" fill="#C9A24B"/><circle cx="255" cy="472" r="7" fill="#E9E4D8"/><circle cx="40" cy="392" r="5" fill="#8FA69A"/>
+    </g>
+    <g transform="rotate(-9 104 177)">
+      <rect x="96" y="150" width="320" height="54" rx="10" fill="#F2EFE8"/>
+      <rect x="80" y="140" width="352" height="80" filter="url(#pL)" clip-path="url(#cS)"/>
+      <g clip-path="url(#cS)" fill="#103A2C"><polygon points="104,150 132,150 116,204 88,204"/><polygon points="152,150 180,150 164,204 136,204"/><polygon points="200,150 228,150 212,204 184,204"/><polygon points="248,150 276,150 260,204 232,204"/><polygon points="296,150 324,150 308,204 280,204"/><polygon points="344,150 372,150 356,204 328,204"/><polygon points="392,150 420,150 404,204 376,204"/></g>
+    </g>
+    <rect x="96" y="214" width="320" height="168" rx="20" fill="#F2EFE8"/>
+    <rect x="96" y="214" width="320" height="168" filter="url(#pL)" clip-path="url(#cBody)"/>
+    <g fill="#103A2C" opacity="0.92"><rect x="130" y="256" width="180" height="16" rx="8"/><rect x="130" y="296" width="252" height="16" rx="8"/><rect x="130" y="336" width="150" height="16" rx="8"/></g>
+  </g>
+</svg>

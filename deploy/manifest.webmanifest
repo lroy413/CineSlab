@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "CineSlab",
+  "short_name": "CineSlab",
+  "description": "The filmmaker's production toolkit — scripts, shot lists, call sheets, budgets, lighting, and more, all on your device.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#103A2C",
+  "theme_color": "#103A2C",
+  "categories": ["productivity", "photo", "utilities"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

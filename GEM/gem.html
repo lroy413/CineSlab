@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#F5DDE0" />
+<title>GEM · Gimmer Events Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ PALETTE / TOKENS ============ */
+:root{
+  --pink-50:#FDF6F7;
+  --pink-100:#FBEDEF;
+  --pink-200:#F5DDE0;
+  --pink-300:#EFC9CF;
+  --pink-400:#E4AAB3;
+  --ivory:#FFFCF9;
+  --card:#FFFFFF;
+  --gold:#C9A24B;
+  --gold-2:#E7C86B;
+  --gold-soft:#EFE0B8;
+  --gold-grad:linear-gradient(135deg,#E7C86B 0%,#C9A24B 55%,#B8923E 100%);
+  --ink:#4A3B3F;
+  --ink-soft:#6E5B60;
+  --muted:#9B8A8E;
+  --line:#EFDCDF;
+  --ok:#5FA46A;
+  --warn:#D99A54;
+  --danger:#C96A6A;
+  --shadow:0 10px 30px rgba(120,70,80,.10);
+  --shadow-sm:0 3px 10px rgba(120,70,80,.08);
+  --radius:16px;
+  --radius-sm:11px;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --serif:'Cormorant Garamond',Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans);
+  color:var(--ink);
+  background:
+    radial-gradient(1200px 600px at 15% -10%, #FCEEF0 0%, rgba(252,238,240,0) 60%),
+    radial-gradient(1000px 700px at 110% 10%, #FBE7EC 0%, rgba(251,231,236,0) 55%),
+    linear-gradient(180deg,#FBEDEF 0%,#FDF6F7 100%);
+  min-height:100%;
+  -webkit-font-smoothing:antialiased;
+}
+#sparkles{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.6}
+.app{position:relative;z-index:2;display:flex;min-height:100vh}
+
+/* ============ SIDEBAR ============ */
+.sidebar{
+  width:248px;flex:0 0 248px;
+  padding:26px 16px;
+  display:flex;flex-direction:column;gap:6px;
+  border-right:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,252,249,.85), rgba(255,252,249,.6));
+  backdrop-filter:blur(8px);
+  position:sticky;top:0;height:100vh;
+}
+.brand{display:flex;align-items:center;gap:12px;padding:6px 10px 20px}
+.brand .mark{
+  width:42px;height:42px;border-radius:12px;
+  background:var(--gold-grad);
+  display:grid;place-items:center;
+  font-family:var(--serif);font-size:24px;font-weight:600;color:#fff;
+  box-shadow:0 6px 16px rgba(201,162,75,.4), inset 0 1px 2px rgba(255,255,255,.6);
+}
+.brand .name{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:.5px;line-height:1}
+.brand .sub{font-size:10.5px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-top:3px}
+.nav-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:14px 12px 6px}
+.nav-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 12px;border-radius:12px;cursor:pointer;
+  color:var(--ink-soft);font-size:14px;font-weight:500;
+  transition:all .16s ease;
+}
+.nav-item .ic{width:20px;text-align:center;font-size:16px;opacity:.85}
+.nav-item:hover{background:var(--pink-100);color:var(--ink)}
+.nav-item.active{
+  background:var(--card);color:var(--ink);font-weight:600;
+  box-shadow:var(--shadow-sm);
+  border:1px solid var(--line);
+}
+.nav-item.active .ic{opacity:1}
+.sidebar .spacer{flex:1}
+.user-chip{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--pink-100)}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--gold-grad);display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px}
+.user-chip .who{font-size:13px;font-weight:600;line-height:1.2}
+.user-chip .role{font-size:11px;color:var(--muted)}
+
+/* ============ MAIN ============ */
+.main{flex:1;min-width:0;padding:30px 40px 60px;max-width:1240px}
+.topbar{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;gap:20px;flex-wrap:wrap}
+.page-title{font-family:var(--serif);font-size:38px;font-weight:600;line-height:1}
+.page-sub{color:var(--muted);font-size:14px;margin-top:6px}
+.btn{
+  font-family:var(--sans);font-size:13.5px;font-weight:600;
+  padding:10px 18px;border-radius:11px;border:1px solid transparent;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;transition:all .16s;
+}
+.btn-gold{background:var(--gold-grad);color:#fff;box-shadow:0 6px 16px rgba(201,162,75,.32)}
+.btn-gold:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn-ghost{background:var(--card);border-color:var(--line);color:var(--ink-soft)}
+.btn-ghost:hover{border-color:var(--pink-400);color:var(--ink)}
+
+/* stat cards */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;right:-20px;top:-20px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,var(--gold-soft),transparent 70%);opacity:.6}
+.stat .k{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.stat .v{font-family:var(--serif);font-size:34px;font-weight:600;margin-top:6px;line-height:1}
+.stat .d{font-size:12px;margin-top:6px;color:var(--ink-soft)}
+.stat .d.up{color:var(--ok)}
+
+/* generic card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-h{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.card-h h3{font-family:var(--serif);font-size:22px;font-weight:600}
+.grid-2{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+
+/* ============ PIPELINE (KANBAN) ============ */
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(250px,1fr);gap:16px;overflow-x:auto;padding-bottom:10px}
+.col{background:rgba(255,252,249,.7);border:1px solid var(--line);border-radius:var(--radius);padding:14px;min-height:200px}
+.col.drag-over{border-color:var(--gold);background:var(--pink-50);box-shadow:inset 0 0 0 2px var(--gold-soft)}
+.col-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px}
+.col-h .t{font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%}
+.col-h .n{font-size:12px;color:var(--muted);background:var(--pink-100);padding:2px 9px;border-radius:20px}
+.lead{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:13px 14px;margin-bottom:10px;cursor:grab;box-shadow:var(--shadow-sm);
+  transition:transform .12s, box-shadow .12s;
+}
+.lead:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.lead.dragging{opacity:.5;cursor:grabbing}
+.lead .names{font-family:var(--serif);font-size:18px;font-weight:600;line-height:1.1}
+.lead .meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px}
+.lead .foot{display:flex;align-items:center;justify-content:space-between;margin-top:11px}
+.pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--pink-100);color:var(--ink-soft)}
+.pill.gold{background:var(--gold-soft);color:#8a6c22}
+.val{font-size:13px;font-weight:600;color:var(--ink)}
+
+/* ============ TABLES ============ */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:12px 22px;border-bottom:1px solid var(--line)}
+td{padding:14px 22px;border-bottom:1px solid var(--line);font-size:14px}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--pink-50)}
+.status{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:20px;display:inline-block}
+.s-paid{background:#E7F2E9;color:#3f7a4a}
+.s-due{background:#FBEEDD;color:#a06a25}
+.s-over{background:#FBE4E4;color:#b04d4d}
+.s-draft{background:var(--pink-100);color:var(--ink-soft)}
+
+/* progress */
+.bar{height:8px;border-radius:20px;background:var(--pink-100);overflow:hidden}
+.bar > i{display:block;height:100%;background:var(--gold-grad);border-radius:20px}
+
+/* timeline */
+.tl{position:relative;padding-left:26px}
+.tl::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--gold-soft)}
+.tl-item{position:relative;padding:0 0 20px 0}
+.tl-item::before{content:"";position:absolute;left:-24px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--card);border:3px solid var(--gold)}
+.tl-item .time{font-size:12px;font-weight:600;color:var(--gold);letter-spacing:.5px}
+.tl-item .ev{font-size:14.5px;font-weight:600;margin-top:2px}
+.tl-item .ds{font-size:12.5px;color:var(--muted);margin-top:1px}
+
+/* checklist */
+.check{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.check:last-child{border-bottom:none}
+.box{width:22px;height:22px;border-radius:7px;border:2px solid var(--pink-300);display:grid;place-items:center;flex:0 0 22px;transition:all .15s}
+.check.done .box{background:var(--gold-grad);border-color:transparent;color:#fff}
+.check.done .lbl{text-decoration:line-through;color:var(--muted)}
+.check .lbl{font-size:14px}
+.check .cat{margin-left:auto;font-size:11px;color:var(--muted);background:var(--pink-100);padding:2px 9px;border-radius:20px}
+
+/* budget bars */
+.bud-row{display:flex;align-items:center;gap:16px;padding:13px 22px;border-bottom:1px solid var(--line)}
+.bud-row:last-child{border-bottom:none}
+.bud-row .cat{width:150px;font-size:14px;font-weight:500}
+.bud-row .track{flex:1}
+.bud-row .amt{width:150px;text-align:right;font-size:13px;color:var(--ink-soft)}
+.bud-row .amt b{color:var(--ink)}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(74,59,63,.35);backdrop-filter:blur(3px);z-index:50;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.show{display:flex}
+.modal{background:var(--card);border-radius:20px;box-shadow:var(--shadow);width:100%;max-width:460px;padding:28px;border:1px solid var(--line)}
+.modal h3{font-family:var(--serif);font-size:26px;font-weight:600;margin-bottom:4px}
+.modal p.sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+.field input,.field select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--pink-50)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--gold);background:#fff}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+
+/* event chooser cards */
+.ev-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.ev-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .14s,box-shadow .14s}
+.ev-card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.ev-card .banner{height:78px;background:var(--gold-grad);position:relative}
+.ev-card .banner .d{position:absolute;bottom:10px;left:16px;color:#fff;font-size:12px;font-weight:600;background:rgba(0,0,0,.12);padding:3px 10px;border-radius:20px}
+.ev-card .body{padding:16px}
+.ev-card .body h4{font-family:var(--serif);font-size:21px;font-weight:600}
+.ev-card .body .loc{font-size:12.5px;color:var(--muted);margin-top:2px}
+.ev-card .body .prog{margin-top:12px}
+
+.back-link{font-size:13px;color:var(--gold);font-weight:600;cursor:pointer;display:inline-flex;gap:6px;align-items:center;margin-bottom:6px}
+.sec-badge{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-soft);background:var(--pink-100);padding:5px 12px;border-radius:20px;border:1px solid var(--line)}
+
+@media (max-width:860px){
+  .sidebar{position:fixed;left:-260px;transition:left .2s;z-index:40}
+  .sidebar.open{left:0}
+  .main{padding:20px 18px 60px}
+  .stat-row{grid-template-columns:repeat(2,1fr)}
+  .grid-2{grid-template-columns:1fr}
+  .page-title{font-size:30px}
+  .menu-btn{display:inline-grid!important}
+}
+.menu-btn{display:none;place-items:center;width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--card);font-size:18px;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="sparkles"></canvas>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">G</div>
+      <div>
+        <div class="name">GEM</div>
+        <div class="sub">Gimmer Events</div>
+      </div>
+    </div>
+    <div class="nav-label">Workspace</div>
+    <div class="nav-item" data-view="dashboard"><span class="ic">◆</span> Dashboard</div>
+    <div class="nav-item" data-view="pipeline"><span class="ic">❧</span> Leads &amp; Pipeline</div>
+    <div class="nav-item" data-view="clients"><span class="ic">♥</span> Clients</div>
+    <div class="nav-label">Events</div>
+    <div class="nav-item" data-view="events"><span class="ic">✦</span> Events</div>
+    <div class="nav-item" data-view="finance"><span class="ic">₲</span> Budget &amp; Invoicing</div>
+    <div class="spacer"></div>
+    <div class="sec-badge" style="margin-bottom:12px">🔒 End-to-end secured</div>
+    <div class="user-chip">
+      <div class="avatar">GM</div>
+      <div>
+        <div class="who">Gimmer M.</div>
+        <div class="role">Lead Planner · Admin</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="menu-btn" id="menuBtn">☰</button>
+        <div>
+          <h1 class="page-title" id="pgTitle">Dashboard</h1>
+          <div class="page-sub" id="pgSub">Wednesday, August 3 · A calm day of details.</div>
+        </div>
+      </div>
+      <div id="pgActions"></div>
+    </div>
+    <div id="content"></div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- gold-dust sparkle canvas ---------- */
+(function sparkle(){
+  var c=document.getElementById('sparkles'),x=c.getContext('2d'),P=[],W,H;
+  function size(){W=c.width=innerWidth;H=c.height=innerHeight;}
+  size();addEventListener('resize',size);
+  for(var i=0;i<70;i++)P.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.3,a:Math.random(),s:Math.random()*.02+.004,vy:Math.random()*.12+.02});
+  function tick(){
+    x.clearRect(0,0,W,H);
+    for(var i=0;i<P.length;i++){var p=P[i];p.a+=p.s;var op=(Math.sin(p.a)+1)/2*.8;
+      p.y-=p.vy;if(p.y<-4){p.y=H+4;p.x=Math.random()*W;}
+      x.beginPath();x.arc(p.x,p.y,p.r,0,7);
+      x.fillStyle='rgba('+[Math.round(210),Math.round(180),Math.round(90)].join(',')+','+op+')';
+      x.shadowBlur=6;x.shadowColor='rgba(220,190,110,'+op+')';x.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+/* ---------- seed data ---------- */
+var STAGES=[
+  {id:'inquiry',name:'Inquiry',color:'#E4AAB3'},
+  {id:'proposal',name:'Proposal Sent',color:'#E7C86B'},
+  {id:'booked',name:'Booked',color:'#C9A24B'},
+  {id:'planning',name:'In Planning',color:'#8FBF9F'},
+  {id:'wrapped',name:'Wrapped',color:'#B7A6D6'}
+];
+var DEFAULT={
+  leads:[
+    {id:'l1',names:'Ava & Julian',type:'Wedding',date:'2026-09-19',venue:'Rosewood Estate',value:42000,stage:'planning',guests:140},
+    {id:'l2',names:'Priya & Sam',type:'Wedding',date:'2026-10-11',venue:'The Glass Conservatory',value:58000,stage:'booked',guests:200},
+    {id:'l3',names:'Nora & Beck',type:'Wedding',date:'2027-05-30',venue:'Coastal Bluff',value:36000,stage:'proposal',guests:110},
+    {id:'l4',names:'The Hale Gala',type:'Corporate',date:'2026-11-14',venue:'Grand Atrium',value:75000,stage:'proposal',guests:320},
+    {id:'l5',names:'Mia & Theo',type:'Wedding',date:'2027-06-12',venue:'Willow Barn',value:28000,stage:'inquiry',guests:90},
+    {id:'l6',names:'Devlin 40th',type:'Milestone',date:'2026-08-30',venue:'Private Residence',value:18000,stage:'inquiry',guests:60},
+    {id:'l7',names:'Chen & Ito',type:'Wedding',date:'2026-06-06',venue:'Lakeside Pavilion',value:47000,stage:'wrapped',guests:160}
+  ],
+  events:[
+    {id:'e1',leadId:'l2',title:'Priya & Sam',date:'2026-10-11',venue:'The Glass Conservatory',loc:'Napa, CA',
+      timeline:[
+        {t:'1:30 PM',ev:'Vendor load-in',ds:'Florals, rentals, catering arrival'},
+        {t:'3:00 PM',ev:'First look',ds:'Garden terrace · photographer + couple'},
+        {t:'4:30 PM',ev:'Ceremony',ds:'Conservatory hall · 200 guests seated'},
+        {t:'5:15 PM',ev:'Cocktail hour',ds:'West lawn · string quartet'},
+        {t:'6:30 PM',ev:'Reception & dinner',ds:'Grand ballroom · plated service'},
+        {t:'9:00 PM',ev:'First dance & toasts',ds:'Followed by open dancing'},
+        {t:'11:30 PM',ev:'Send-off & load-out',ds:'Sparkler exit'}
+      ],
+      checklist:[
+        {id:'c1',lbl:'Confirm final guest count with caterer',cat:'Catering',done:true},
+        {id:'c2',lbl:'Sign off on floral proposal',cat:'Design',done:true},
+        {id:'c3',lbl:'Finalize ceremony music',cat:'Music',done:true},
+        {id:'c4',lbl:'Distribute day-of timeline to vendors',cat:'Logistics',done:false},
+        {id:'c5',lbl:'Collect final payment from client',cat:'Finance',done:false},
+        {id:'c6',lbl:'Confirm transportation for wedding party',cat:'Logistics',done:false},
+        {id:'c7',lbl:'Rehearsal walk-through',cat:'Logistics',done:false}
+      ],
+      budget:[
+        {cat:'Venue',est:16000,act:16000},
+        {cat:'Catering & Bar',est:18000,act:17200},
+        {cat:'Florals & Design',est:9000,act:9600},
+        {cat:'Photography / Film',est:7500,act:7500},
+        {cat:'Music & Entertainment',est:4200,act:3800},
+        {cat:'Rentals & Décor',est:5500,act:0},
+        {cat:'Planning Fee',est:8000,act:8000}
+      ]
+    },
+    {id:'e2',leadId:'l1',title:'Ava & Julian',date:'2026-09-19',venue:'Rosewood Estate',loc:'Hudson Valley, NY',
+      timeline:[
+        {t:'2:00 PM',ev:'Setup begins',ds:'Rentals + florals'},
+        {t:'4:00 PM',ev:'Ceremony',ds:'Estate gardens'},
+        {t:'5:00 PM',ev:'Cocktails',ds:'Veranda'},
+        {t:'6:30 PM',ev:'Reception',ds:'Tented lawn'}
+      ],
+      checklist:[
+        {id:'c1',lbl:'Book ceremony rehearsal',cat:'Logistics',done:true},
+        {id:'c2',lbl:'Approve stationery suite',cat:'Design',done:false},
+        {id:'c3',lbl:'Tasting with caterer',cat:'Catering',done:false}
+      ],
+      budget:[
+        {cat:'Venue',est:12000,act:12000},
+        {cat:'Catering & Bar',est:13000,act:0},
+        {cat:'Florals & Design',est:7000,act:0},
+        {cat:'Photography / Film',est:6000,act:6000},
+        {cat:'Planning Fee',est:6500,act:6500}
+      ]
+    }
+  ],
+  invoices:[
+    {id:'i1',client:'Priya & Sam',num:'GEM-1042',amount:29000,due:'2026-08-01',status:'paid'},
+    {id:'i2',client:'Priya & Sam',num:'GEM-1051',amount:29000,due:'2026-09-20',status:'due'},
+    {id:'i3',client:'Ava & Julian',num:'GEM-1039',amount:21000,due:'2026-07-15',status:'paid'},
+    {id:'i4',client:'Ava & Julian',num:'GEM-1055',amount:21000,due:'2026-08-19',status:'due'},
+    {id:'i5',client:'The Hale Gala',num:'GEM-1060',amount:37500,due:'2026-07-28',status:'over'},
+    {id:'i6',client:'Nora & Beck',num:'GEM-1063',amount:12000,due:'2026-09-01',status:'draft'}
+  ]
+};
+
+/* ---------- persistence (local for prototype; swaps to secure API later) ---------- */
+var KEY='gem-proto-v1';
+var db;
+try{ db=JSON.parse(localStorage.getItem(KEY))||null; }catch(e){ db=null; }
+if(!db){ db=DEFAULT; }
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(db)); }catch(e){} }
+
+/* ---------- helpers ---------- */
+var $=function(s,r){return (r||document).querySelector(s);};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+function money(n){return '$'+Number(n||0).toLocaleString('en-US');}
+function fmtDate(iso){if(!iso)return '';var d=new Date(iso+'T00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function daysAway(iso){var d=new Date(iso+'T00:00'),now=new Date();return Math.ceil((d-now)/86400000);}
+function stageOf(id){return STAGES.find(function(s){return s.id===id;});}
+
+var state={view:'dashboard',eventId:null};
+
+/* ---------- views ---------- */
+var TITLES={
+  dashboard:['Dashboard','Wednesday, August 3 · A calm day of details.'],
+  pipeline:['Leads & Pipeline','Drag a card to move it through your booking flow.'],
+  clients:['Clients','Every couple and host, in one place.'],
+  events:['Events','Your active productions.'],
+  finance:['Budget & Invoicing','Money in, money out — beautifully clear.']
+};
+
+function setView(v,opts){
+  state.view=v; if(opts&&opts.eventId!==undefined)state.eventId=opts.eventId;
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.toggle('active',n.dataset.view===v);});
+  var t=TITLES[v]||['',''];
+  $('#pgTitle').textContent=t[0]; $('#pgSub').textContent=t[1];
+  $('#pgActions').innerHTML=actionsFor(v);
+  wireActions();
+  render();
+  document.getElementById('sidebar').classList.remove('open');
+  window.scrollTo(0,0);
+}
+
+function actionsFor(v){
+  if(v==='pipeline')return '<button class="btn btn-gold" id="addLead">＋ New Lead</button>';
+  if(v==='finance')return '<button class="btn btn-ghost" id="a2">Export</button> <button class="btn btn-gold" id="addInv">＋ New Invoice</button>';
+  if(v==='events')return '<button class="btn btn-gold" id="addEvent">＋ New Event</button>';
+  return '';
+}
+function wireActions(){
+  var a=$('#addLead'); if(a)a.onclick=openLeadModal;
+  var i=$('#addInv'); if(i)i.onclick=openInvoiceModal;
+  var e=$('#addEvent'); if(e)e.onclick=function(){toast('Event creation flows from a booked lead ✦');};
+}
+
+function render(){
+  var el=$('#content');
+  if(state.view==='dashboard')el.innerHTML=viewDashboard();
+  else if(state.view==='pipeline'){el.innerHTML=viewPipeline();wireBoard();}
+  else if(state.view==='clients')el.innerHTML=viewClients();
+  else if(state.view==='events'){ el.innerHTML= state.eventId?viewEventDetail(state.eventId):viewEvents(); wireEvents(); }
+  else if(state.view==='finance')el.innerHTML=viewFinance();
+}
+
+/* --- Dashboard --- */
+function viewDashboard(){
+  var booked=db.leads.filter(function(l){return ['booked','planning','wrapped'].indexOf(l.stage)>-1;});
+  var pipeVal=db.leads.filter(function(l){return ['inquiry','proposal'].indexOf(l.stage)>-1;}).reduce(function(a,l){return a+l.value;},0);
+  var bookedVal=booked.reduce(function(a,l){return a+l.value;},0);
+  var outstanding=db.invoices.filter(function(x){return x.status!=='paid'&&x.status!=='draft';}).reduce(function(a,x){return a+x.amount;},0);
+  var upcoming=db.leads.slice().filter(function(l){return daysAway(l.date)>=0;}).sort(function(a,b){return a.date<b.date?-1:1;}).slice(0,4);
+  var tasks=[];
+  db.events.forEach(function(e){e.checklist.forEach(function(c){if(!c.done)tasks.push({ev:e.title,lbl:c.lbl,cat:c.cat});});});
+  tasks=tasks.slice(0,5);
+  return ''+
+  '<div class="stat-row">'+
+    stat('Booked Value',money(bookedVal),booked.length+' active events','up')+
+    stat('Pipeline Value',money(pipeVal),db.leads.filter(function(l){return ['inquiry','proposal'].indexOf(l.stage)>-1;}).length+' open leads')+
+    stat('Outstanding',money(outstanding),'across '+db.invoices.filter(function(x){return x.status==='due'||x.status==='over';}).length+' invoices')+
+    stat('Next Event',upcoming[0]?daysAway(upcoming[0].date)+' days':'—',upcoming[0]?esc(upcoming[0].names):'')+
+  '</div>'+
+  '<div class="grid-2">'+
+    '<div class="card"><div class="card-h"><h3>Upcoming Events</h3><span class="pill">'+upcoming.length+'</span></div>'+
+      '<table><tbody>'+upcoming.map(function(l){return '<tr><td><b>'+esc(l.names)+'</b><div style="font-size:12px;color:var(--muted)">'+esc(l.venue)+'</div></td>'+
+        '<td>'+fmtDate(l.date)+'</td><td><span class="pill gold">'+daysAway(l.date)+'d</span></td><td style="text-align:right"><span class="val">'+money(l.value)+'</span></td></tr>';}).join('')+'</tbody></table></div>'+
+    '<div class="card"><div class="card-h"><h3>Needs Attention</h3></div><div style="padding:8px 22px 14px">'+
+      tasks.map(function(t){return '<div class="check"><div class="box"></div><span class="lbl">'+esc(t.lbl)+'</span><span class="cat">'+esc(t.ev)+'</span></div>';}).join('')+
+    '</div></div>'+
+  '</div>';
+}
+function stat(k,v,d,up){return '<div class="stat"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d'+(up?' up':'')+'">'+esc(d)+'</div></div>';}
+
+/* --- Pipeline --- */
+function viewPipeline(){
+  return '<div class="board">'+STAGES.map(function(s){
+    var cards=db.leads.filter(function(l){return l.stage===s.id;});
+    var tot=cards.reduce(function(a,l){return a+l.value;},0);
+    return '<div class="col" data-stage="'+s.id+'"><div class="col-h"><div class="t"><span class="dot" style="background:'+s.color+'"></span>'+s.name+'</div><span class="n">'+cards.length+'</span></div>'+
+      '<div class="col-body">'+cards.map(leadCard).join('')+'</div>'+
+      (tot?'<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:6px">'+money(tot)+'</div>':'')+
+    '</div>';
+  }).join('')+'</div>';
+}
+function leadCard(l){
+  return '<div class="lead" draggable="true" data-id="'+l.id+'">'+
+    '<div class="names">'+esc(l.names)+'</div>'+
+    '<div class="meta">'+esc(l.type)+' · '+fmtDate(l.date)+'</div>'+
+    '<div class="meta">📍 '+esc(l.venue)+'</div>'+
+    '<div class="foot"><span class="pill">'+l.guests+' guests</span><span class="val">'+money(l.value)+'</span></div>'+
+  '</div>';
+}
+function wireBoard(){
+  var dragId=null;
+  document.querySelectorAll('.lead').forEach(function(card){
+    card.addEventListener('dragstart',function(){dragId=card.dataset.id;card.classList.add('dragging');});
+    card.addEventListener('dragend',function(){card.classList.remove('dragging');});
+  });
+  document.querySelectorAll('.col').forEach(function(col){
+    col.addEventListener('dragover',function(e){e.preventDefault();col.classList.add('drag-over');});
+    col.addEventListener('dragleave',function(){col.classList.remove('drag-over');});
+    col.addEventListener('drop',function(e){
+      e.preventDefault();col.classList.remove('drag-over');
+      var lead=db.leads.find(function(l){return l.id===dragId;});
+      if(lead){lead.stage=col.dataset.stage;save();render();wireBoard();}
+    });
+  });
+}
+
+/* --- Clients --- */
+function viewClients(){
+  return '<div class="card"><table><thead><tr><th>Client</th><th>Type</th><th>Event Date</th><th>Venue</th><th>Stage</th><th style="text-align:right">Value</th></tr></thead><tbody>'+
+    db.leads.slice().sort(function(a,b){return a.date<b.date?-1:1;}).map(function(l){var s=stageOf(l.stage);
+      return '<tr><td><b>'+esc(l.names)+'</b></td><td>'+esc(l.type)+'</td><td>'+fmtDate(l.date)+'</td><td>'+esc(l.venue)+'</td>'+
+      '<td><span class="pill" style="background:'+s.color+'22;color:'+s.color+'">'+s.name+'</span></td><td style="text-align:right"><span class="val">'+money(l.value)+'</span></td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+/* --- Events --- */
+function viewEvents(){
+  return '<div class="ev-cards">'+db.events.map(function(e){
+    var done=e.checklist.filter(function(c){return c.done;}).length,tot=e.checklist.length,pct=tot?Math.round(done/tot*100):0;
+    return '<div class="ev-card" data-ev="'+e.id+'"><div class="banner"><span class="d">'+daysAway(e.date)+' days · '+fmtDate(e.date)+'</span></div>'+
+      '<div class="body"><h4>'+esc(e.title)+'</h4><div class="loc">'+esc(e.venue)+' · '+esc(e.loc)+'</div>'+
+      '<div class="prog"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px"><span>Planning progress</span><span>'+pct+'%</span></div><div class="bar"><i style="width:'+pct+'%"></i></div></div></div></div>';
+  }).join('')+'</div>';
+}
+function wireEvents(){
+  document.querySelectorAll('.ev-card').forEach(function(c){c.onclick=function(){setView('events',{eventId:c.dataset.ev});};});
+  var b=$('#evBack'); if(b)b.onclick=function(){setView('events',{eventId:null});};
+  document.querySelectorAll('.check[data-cid]').forEach(function(ch){
+    ch.onclick=function(){
+      var e=db.events.find(function(x){return x.id===state.eventId;});
+      var item=e.checklist.find(function(c){return c.id===ch.dataset.cid;});
+      item.done=!item.done;save();render();wireEvents();
+    };
+  });
+}
+function viewEventDetail(id){
+  var e=db.events.find(function(x){return x.id===id;});if(!e)return viewEvents();
+  var done=e.checklist.filter(function(c){return c.done;}).length,tot=e.checklist.length,pct=tot?Math.round(done/tot*100):0;
+  var estT=e.budget.reduce(function(a,b){return a+b.est;},0),actT=e.budget.reduce(function(a,b){return a+b.act;},0);
+  return '<div class="back-link" id="evBack">‹ All events</div>'+
+    '<div class="stat-row" style="grid-template-columns:repeat(4,1fr)">'+
+      stat('Countdown',daysAway(e.date)+' days',fmtDate(e.date))+
+      stat('Checklist',pct+'%',done+' of '+tot+' done')+
+      stat('Budget',money(estT),'estimated total')+
+      stat('Committed',money(actT),Math.round(actT/estT*100)+'% of budget')+
+    '</div>'+
+  '<div class="grid-2">'+
+    '<div class="card"><div class="card-h"><h3>Day-of Timeline</h3><span class="sec-badge">'+esc(e.venue)+'</span></div><div style="padding:22px"><div class="tl">'+
+      e.timeline.map(function(t){return '<div class="tl-item"><div class="time">'+esc(t.t)+'</div><div class="ev">'+esc(t.ev)+'</div><div class="ds">'+esc(t.ds)+'</div></div>';}).join('')+
+    '</div></div></div>'+
+    '<div class="card"><div class="card-h"><h3>Checklist</h3><span class="pill gold">'+pct+'%</span></div><div style="padding:8px 22px 16px">'+
+      e.checklist.map(function(c){return '<div class="check '+(c.done?'done':'')+'" data-cid="'+c.id+'"><div class="box">'+(c.done?'✓':'')+'</div><span class="lbl">'+esc(c.lbl)+'</span><span class="cat">'+esc(c.cat)+'</span></div>';}).join('')+
+    '</div></div>'+
+  '</div>';
+}
+
+/* --- Finance --- */
+function viewFinance(){
+  var e=db.events[0];
+  var estT=e.budget.reduce(function(a,b){return a+b.est;},0),actT=e.budget.reduce(function(a,b){return a+b.act;},0),maxV=Math.max.apply(null,e.budget.map(function(b){return b.est;}));
+  var paid=db.invoices.filter(function(x){return x.status==='paid';}).reduce(function(a,x){return a+x.amount;},0);
+  var out=db.invoices.filter(function(x){return x.status==='due'||x.status==='over';}).reduce(function(a,x){return a+x.amount;},0);
+  return ''+
+  '<div class="stat-row" style="grid-template-columns:repeat(3,1fr)">'+
+    stat('Collected',money(paid),'this season','up')+
+    stat('Outstanding',money(out),db.invoices.filter(function(x){return x.status==='due';}).length+' due · '+db.invoices.filter(function(x){return x.status==='over';}).length+' overdue')+
+    stat('Drafts',money(db.invoices.filter(function(x){return x.status==='draft';}).reduce(function(a,x){return a+x.amount;},0)),'ready to send')+
+  '</div>'+
+  '<div class="card" style="margin-bottom:20px"><div class="card-h"><h3>Invoices</h3><span class="pill">'+db.invoices.length+'</span></div>'+
+    '<table><thead><tr><th>Invoice</th><th>Client</th><th>Due</th><th>Status</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+
+    db.invoices.map(function(x){var cls={paid:'s-paid',due:'s-due',over:'s-over',draft:'s-draft'}[x.status],lbl={paid:'Paid',due:'Due',over:'Overdue',draft:'Draft'}[x.status];
+      return '<tr><td><b>'+esc(x.num)+'</b></td><td>'+esc(x.client)+'</td><td>'+fmtDate(x.due)+'</td><td><span class="status '+cls+'">'+lbl+'</span></td><td style="text-align:right"><span class="val">'+money(x.amount)+'</span></td></tr>';
+    }).join('')+'</tbody></table></div>'+
+  '<div class="card"><div class="card-h"><h3>Budget · '+esc(e.title)+'</h3><span class="sec-badge">'+money(actT)+' of '+money(estT)+' committed</span></div>'+
+    '<div style="padding:8px 0 12px">'+e.budget.map(function(b){var w=Math.round(b.est/maxV*100),aw=b.est?Math.round(b.act/b.est*100):0;
+      return '<div class="bud-row"><div class="cat">'+esc(b.cat)+'</div><div class="track"><div class="bar" style="height:12px"><i style="width:'+aw+'%"></i></div></div>'+
+      '<div class="amt"><b>'+money(b.act)+'</b> / '+money(b.est)+'</div></div>';
+    }).join('')+'</div></div>';
+}
+
+/* ---------- modals ---------- */
+var ov=$('#overlay'),md=$('#modal');
+function closeModal(){ov.classList.remove('show');}
+ov.addEventListener('click',function(e){if(e.target===ov)closeModal();});
+function openLeadModal(){
+  md.innerHTML='<h3>New Lead</h3><p class="sub">Add an inquiry to the top of your pipeline.</p>'+
+    '<div class="field"><label>Couple / Client</label><input id="f_names" placeholder="e.g. Ava & Julian"></div>'+
+    '<div class="field"><label>Event type</label><select id="f_type"><option>Wedding</option><option>Corporate</option><option>Milestone</option><option>Social</option></select></div>'+
+    '<div class="field"><label>Event date</label><input id="f_date" type="date"></div>'+
+    '<div class="field"><label>Venue</label><input id="f_venue" placeholder="Venue name"></div>'+
+    '<div class="field"><label>Estimated value</label><input id="f_value" type="number" placeholder="35000"></div>'+
+    '<div class="modal-actions"><button class="btn btn-ghost" id="mCancel">Cancel</button><button class="btn btn-gold" id="mSave">Add Lead</button></div>';
+  ov.classList.add('show');
+  $('#mCancel').onclick=closeModal;
+  $('#mSave').onclick=function(){
+    var names=$('#f_names').value.trim();if(!names){$('#f_names').focus();return;}
+    db.leads.unshift({id:'l'+Date.now(),names:names,type:$('#f_type').value,date:$('#f_date').value||'2027-01-01',venue:$('#f_venue').value.trim()||'TBD',value:Number($('#f_value').value)||0,stage:'inquiry',guests:0});
+    save();closeModal();setView('pipeline');
+  };
+}
+function openInvoiceModal(){
+  var opts=db.leads.map(function(l){return '<option>'+esc(l.names)+'</option>';}).join('');
+  md.innerHTML='<h3>New Invoice</h3><p class="sub">Bill a client — sent securely from GEM.</p>'+
+    '<div class="field"><label>Client</label><select id="f_client">'+opts+'</select></div>'+
+    '<div class="field"><label>Amount</label><input id="f_amt" type="number" placeholder="29000"></div>'+
+    '<div class="field"><label>Due date</label><input id="f_due" type="date"></div>'+
+    '<div class="modal-actions"><button class="btn btn-ghost" id="mCancel">Cancel</button><button class="btn btn-gold" id="mSave">Create</button></div>';
+  ov.classList.add('show');
+  $('#mCancel').onclick=closeModal;
+  $('#mSave').onclick=function(){
+    db.invoices.unshift({id:'i'+Date.now(),client:$('#f_client').value,num:'GEM-'+(1064+db.invoices.length),amount:Number($('#f_amt').value)||0,due:$('#f_due').value||'2026-12-01',status:'draft'});
+    save();closeModal();setView('finance');
+  };
+}
+function toast(msg){
+  var t=document.createElement('div');t.textContent=msg;
+  t.style.cssText='position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;z-index:99;box-shadow:var(--shadow);font-weight:500';
+  document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .4s';},1800);setTimeout(function(){t.remove();},2300);
+}
+
+/* ---------- nav wiring ---------- */
+document.querySelectorAll('.nav-item').forEach(function(n){n.onclick=function(){setView(n.dataset.view,{eventId:null});};});
+$('#menuBtn').onclick=function(){document.getElementById('sidebar').classList.toggle('open');};
+
+setView('dashboard');
+})();
+</script>
+</body>
+</html>
