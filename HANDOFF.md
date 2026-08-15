@@ -8,7 +8,8 @@ _Last updated: 2026-08-05. Written so a fresh Claude session (cloud or local) or
 
 **CineSlab** is a film/video pre-production & production companion app for indie creators (script, shot lists, call sheets, budgets, lighting, sun/moon, continuity, etc.). Parent company: **Concrete Films**.
 
-- It ships as **ONE self-contained HTML file**: `slate-and-page_10.html` (~12,800 lines) — inline `<style>` + one big `<script>`. No build system, no `package.json`, **no Node installed on this Mac**, **not a git repo**.
+- It ships as **ONE self-contained HTML file**: `slate-and-page_10.html` (~12,900 lines) — inline `<style>` + one big `<script>`. No build system, no `package.json`, **no Node installed on this Mac**.
+- **It IS a git repo now** (as of 2026-08-15) — pushed to `github.com/lroy413/CineSlab`, default branch `main`. Cloud sessions work against it, and they have Node, so `wrangler` runs there.
 - It's a local-first PWA. All data lives in the browser (IndexedDB via `window.storage`). Supabase is optional/off-by-default.
 - **It is LIVE at https://cineslab.app** ✅
 
@@ -18,9 +19,20 @@ Read `CLAUDE.md` in this folder for the full architecture (state object, render 
 
 ## 2. ⚠️ MOST IMPORTANT: there are fixes NOT yet deployed
 
-`slate-and-page_10.html` (source) and the `deploy/` folder contain several fixes that are **built but NOT yet live on cineslab.app**. The live site is still the very first upload (broken small icons, no mobile fixes). **The #1 next action is to re-deploy** (see §5).
+`slate-and-page_10.html` (source) contains fixes that are **built but NOT yet live on cineslab.app**. **The #1 next action is to re-deploy** (see §5).
 
-The `deploy/` folder is already rebuilt and ready — it just needs to be uploaded.
+**Corrected 2026-08-15** — the previous note here ("the live site is still the very first upload, broken icons, no mobile fixes") was wrong. The live site was measured against the source and the real delta is much smaller. Verified by fetching `https://cineslab.app` and diffing:
+
+**Already live** (do NOT re-fix these):
+- All 6 static assets are byte-identical to `deploy/` — `icon-192.png`, `apple-touch-icon-180.png`, `icon-512.png`, `og-image.png`, `icon.svg`, `manifest.webmanifest`. **The corrected icons shipped.** A phone still showing the old icon is the iOS home-screen icon cache — remove and re-add to Home Screen; no deploy will fix it.
+- `env(safe-area-inset-top)` on `header.slate` / `nav.rail`.
+- Swipe-to-close drawer.
+- CineSlab branding and the Terrazzo re-skin.
+
+**Genuinely not live** — only 25 differing lines, all in the HTML:
+- The `#app.app-shell` CSS block + `app.className = 'app-shell' + …` (the iOS bottom-nav fix).
+- `setupHeaderScrollGlass` reading `.layout` scrollTop with a capturing listener.
+- "Jump Back In" `.slice(0, 4)` → `.slice(0, 2)`.
 
 ---
 
@@ -54,6 +66,16 @@ The `deploy/` folder is already rebuilt and ready — it just needs to be upload
 
 **Local preview before shipping:** `cd deploy && python3 -m http.server 8785` then open `http://127.0.0.1:8785/index.html`. (python3 IS available; node is not.)
 
+**Auto-deploy (added 2026-08-15):** `wrangler.toml` + `.github/workflows/deploy.yml` are in the repo. CI runs the `cp` build itself, which is why **`deploy/index.html` is now gitignored** — it is generated, never committed. (Your local copy still exists, so dashboard drag-and-drop keeps working; just run the `cp` first.)
+
+One-time setup, not yet done:
+1. Cloudflare → My Profile → API Tokens → **"Edit Cloudflare Workers"** template, scoped to the account + the `cineslab.app` zone.
+2. GitHub → repo → Settings → Secrets and variables → Actions → new secret named `CLOUDFLARE_API_TOKEN`.
+
+Then deploy from the **Actions** tab → "Deploy to Cloudflare" → Run workflow. It is deliberately `workflow_dispatch`-only while the mobile fixes are unverified; uncomment the `push:` trigger in the workflow to make every push to `main` ship automatically.
+
+⚠️ `wrangler.toml` declares `routes = [{ pattern = "cineslab.app", custom_domain = true }]`. Keep that line — once you deploy via Wrangler the config file becomes authoritative, and dropping it can detach the custom domain that was attached through the dashboard.
+
 ---
 
 ## 6. Brand (locked)
@@ -82,12 +104,15 @@ These are in the source + `deploy/` but NOT yet on the live site:
 
 ---
 
-## 9. 🐞 Still OUTSTANDING (reported from phone testing, NOT yet fixed)
+## 9. 🐞 OUTSTANDING — status as of 2026-08-15
 
-1. **New Project wizard — checkbox spacing:** the checkbox sits flush against its label ("jumbled"). The rows are `<label class="qm-option"><input type=checkbox><span>…</span></label>` inside `.picker-list` in the wizard modal. Add/enforce a gap (e.g. `.modal .qm-option{gap:12px}` exists ~line 161 but isn't taking on the wizard's picker rows — investigate `.picker-list .qm-option` specificity; may need a rule + the span given `flex:1`).
-2. **Wizard font small / lists not scrollable:** on a tall list (nav-tools step has 9+ items) the modal should cap height and scroll. Give the wizard step body (or `.picker-list`) a `max-height` + `overflow-y:auto`, and bump the option font-size on mobile.
-3. **"Jump Back In" card icons look wrong/repetitive** — they use `iconForView()` which returns a DEPARTMENT icon, so several tools share the same camera icon. Consider per-tool icons or a single neutral icon.
-4. **Home-screen app icon** still shows the OLD broken icon on the user's phone — will fix once §8.1 is deployed AND the user removes + re-adds to Home Screen (iOS icon cache).
+1. **Wizard checkbox spacing — COULD NOT REPRODUCE, hardened anyway.** Rendered the wizard in headless Chromium at a 390×844 iPhone viewport and measured the live DOM: computed gap was exactly **12px**, not flush. The specificity theory in the old note was wrong — `.modal .qm-option` (0,2,0) already beats `.modal label` (0,1,1). Note the wizard markup and CSS are **identical between the live site and source**, so this is not a stale-deploy symptom either; it is either iOS-Safari-specific or was misread on-device. Hardened defensively: `flex:0 0 20px` on the checkbox and `flex:1;min-width:0` on the span, so a native control with its own intrinsic metrics can't eat the gap. **Still unverified on real iOS.**
+2. **Wizard font / scrolling — partly a non-issue, improved anyway.** `.picker-list` already had `max-height:50vh;overflow-y:auto`, and the 17-row nav-tools step measured as genuinely scrollable (scrollHeight 798 > clientHeight 420). Changed on mobile: option font 15px → **16px** (also stops iOS focus-zoom), row padding 13→15px, gap 12→14px, and `.modal .picker-list{max-height:min(50vh,340px)}` so Back/Next stay reachable on short screens.
+3. **"Jump Back In" repetitive icons — FIXED.** Added `TOOL_ICONS`, a per-view map, consulted by `iconForView()` before the department fallback. All 23 tool views now resolve to distinct glyphs (verified programmatically: 23 views, 23 unique SVGs, 0 duplicates). This also fixes the **bottom tab bar**, which shares `iconForView` and could previously show two identical adjacent tabs. Bonus: `DEPT_ICONS.broll` (a filmstrip drawn specifically for B-Roll) was dead code — B-Roll sits in the Camera department, so it resolved to the camera glyph. Now wired up.
+4. **Home-screen app icon** — not a deploy problem. The corrected icons are **already live** (see §2). Fix is purely on-device: remove the app from the Home Screen and re-add it to bust the iOS icon cache.
+
+### Verification status
+Everything above was checked in headless Chromium at an iPhone viewport. **No real-iOS testing was possible in a cloud sandbox.** The two items that specifically need a physical iPhone: the §8.5 bottom-nav app-shell fix, and whether the §9.1 checkbox hardening actually resolves what was seen on-device.
 
 ---
 

@@ -1,0 +1,36 @@
+name: Deploy to Cloudflare
+
+# Manual-only for now. The bottom-nav app-shell fix is still unverified on a
+# real iPhone, so deploys stay a deliberate button press: Actions tab ->
+# "Deploy to Cloudflare" -> Run workflow. Add the `push` trigger below once
+# mobile is confirmed good.
+#
+#  on:
+#    push:
+#      branches: [main]
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The whole build: the source HTML becomes the served index.
+      - name: Build
+        run: cp slate-and-page_10.html deploy/index.html
+
+      - name: Verify deploy folder is complete
+        run: |
+          set -e
+          for f in index.html icon.svg icon-192.png icon-512.png \
+                   apple-touch-icon-180.png og-image.png \
+                   manifest.webmanifest _headers; do
+            test -s "deploy/$f" || { echo "missing or empty: deploy/$f"; exit 1; }
+          done
+          echo "deploy/ contents:"; ls -la deploy
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

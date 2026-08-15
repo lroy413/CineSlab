@@ -1,0 +1,21 @@
+# CineSlab — Cloudflare Worker (static assets only, no Worker script).
+#
+# The "build" is a single copy: slate-and-page_10.html -> deploy/index.html.
+# CI does that step (see .github/workflows/deploy.yml), which is why
+# deploy/index.html is gitignored — it is generated, never committed.
+#
+# Deploy manually with:  npx wrangler deploy
+name = "cineslab"
+compatibility_date = "2025-01-01"
+account_id = "bede02f9ab41bc90bae308430bccdea1"
+
+[assets]
+directory = "./deploy"
+# The app is one HTML file, so unknown paths should land on it rather than 404.
+not_found_handling = "single-page-application"
+
+# Declared explicitly so a Wrangler deploy reconciles the custom domain instead
+# of detaching what was originally attached through the dashboard.
+[[routes]]
+pattern = "cineslab.app"
+custom_domain = true
