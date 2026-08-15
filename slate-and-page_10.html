@@ -334,6 +334,22 @@
   .sync-title{font-family:'Oswald',sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;
     letter-spacing:.07em;color:var(--ink);}
   .sync-counts{font-family:'Courier Prime',monospace;font-size:11px;color:var(--ink-mute);white-space:nowrap;}
+  /* First-run welcome gate. */
+  .gate-screen{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;
+    background:var(--surface-app);padding:calc(28px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));}
+  .gate-card{width:100%;max-width:420px;}
+  .gate-brand{display:flex;align-items:center;gap:11px;margin-bottom:10px;}
+  .gate-mark{display:flex;color:var(--chalk);}
+  .gate-mark svg{width:26px;height:26px;}
+  .gate-brand h1{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.08em;
+    font-size:25px;font-weight:700;color:var(--heading);margin:0;}
+  .gate-tagline{font-size:14px;line-height:1.55;color:var(--ink-mute);margin:0 0 22px;}
+  .gate-screen .subtabs{margin-bottom:16px;}
+  .gate-skip{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);}
+  .gate-warn{font-size:12.5px;line-height:1.6;color:var(--ink-mute);background:var(--surface-alt);
+    border:1px solid var(--line);border-radius:var(--radius-card);padding:12px 13px;margin-bottom:12px;}
+  .gate-warn strong{color:var(--ink);font-weight:600;}
+  .gate-later{font-size:11.5px;color:var(--ink-mute);text-align:center;margin:9px 0 0;}
   .auth-who{display:flex;align-items:center;gap:11px;}
   .auth-avatar{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;
     justify-content:center;background:var(--chalk);color:var(--slate);
@@ -1446,6 +1462,7 @@ const state = {
   remindersEnabled: false, notifiedThisSession: new Set(), projectPanelOpen: false,
   notifyPrefs: null,
   authUser: null, authChecking: true, authMode: 'signIn', authBusy: false, authMsg: null,
+  authGateDone: false,
   syncBusy: null, syncMsg: null, cloudCount: null, secMsg: null, syncConflicts: null, joinMsg: null, shareMsg: null, members: null, membersLoading: false, myPerm: null, memberMsg: null,
   directorNoteFilter: 'all', directorNoteAlertsEnabled: false,
   guideSectionsCollapsed: {}, settingsPage: null,
@@ -2891,6 +2908,9 @@ async function init(){
 
   const savedMode = await storeGet('app-mode', false);
   state.mode = savedMode === 'pro' ? 'pro' : 'simple';
+  // Whether the welcome/sign-in gate has already been answered. Persisted so
+  // "continue without an account" is a decision, not a question every launch.
+  state.authGateDone = (await storeGet('auth-gate-done', false)) === true;
   const legacyCustomTabs = await storeGet('custom-tabs', false);
   const savedProfile = await storeGet('user-profile', false);
   if(savedProfile) state.profile = Object.assign({name:'', role:'', email:'', color:'#2E9E6B'}, savedProfile);
@@ -4032,7 +4052,10 @@ function friendlyAuthError(err){
 
 async function initAuth(){
   state.authChecking = false;
-  if(!authAvailable()) return;          // offline or CDN blocked — stay local
+  // Whatever the outcome, re-render once the check settles: first paint happens
+  // while authChecking is still true, and the welcome gate can only decide
+  // whether to show itself after that resolves.
+  if(!authAvailable()){ render(); return; }   // offline or CDN blocked — stay local
   try{
     const sb = sbClient();
     const { data } = await sb.auth.getSession();
@@ -4052,6 +4075,7 @@ async function initAuth(){
     // An auth failure must never stop the app loading.
     state.authUser = null;
   }
+  render();
 }
 
 async function signUpWithEmail(email, password, displayName){
@@ -4687,6 +4711,98 @@ function settingsHeaderHTML(title){
     </header>
   `;
 }
+function renderAuthGate(app){
+  app.className = '';
+  const mode = state.authMode === 'signUp' ? 'signUp'
+             : state.authMode === 'reset'  ? 'reset' : 'signIn';
+  app.innerHTML = `
+    <div class="gate-screen">
+      <div class="gate-card">
+        <div class="gate-brand">
+          <span class="gate-mark">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/>
+              <rect x="2" y="4" width="5" height="16" stroke="currentColor" stroke-width="1.2"/>
+              <line x1="3.4" y1="7" x2="5.6" y2="7" stroke="currentColor" stroke-width="1.2"/>
+              <line x1="3.4" y1="10.3" x2="5.6" y2="10.3" stroke="currentColor" stroke-width="1.2"/>
+              <line x1="3.4" y1="13.6" x2="5.6" y2="13.6" stroke="currentColor" stroke-width="1.2"/>
+              <line x1="3.4" y1="17" x2="5.6" y2="17" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+          </span>
+          <h1>${esc(APP_NAME)}</h1>
+        </div>
+        <p class="gate-tagline">Your script, shot lists, call sheets and schedule — one place, from first idea to final day.</p>
+
+        <div class="subtabs" id="gateTabs">
+          <div class="subtab ${mode==='signIn'?'active':''}" data-authtab="signIn">Sign in</div>
+          <div class="subtab ${mode==='signUp'?'active':''}" data-authtab="signUp">Create account</div>
+        </div>
+
+        <div class="auth-form">
+          ${mode==='signUp' ? `
+            <label>Your name</label>
+            <input type="text" id="authName" autocomplete="name" placeholder="How you'll show up to collaborators">` : ''}
+          <label>Email</label>
+          <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com">
+          ${mode!=='reset' ? `
+            <label>Password</label>
+            <input type="password" id="authPw" autocomplete="${mode==='signUp'?'new-password':'current-password'}" placeholder="${mode==='signUp'?'At least 6 characters':''}">` : ''}
+          <button class="btn btn-tape" id="authSubmit" style="margin-top:12px;width:100%;" ${state.authBusy?'disabled':''}>
+            ${state.authBusy ? 'Working…' : (mode==='signUp' ? 'Create account' : mode==='reset' ? 'Send reset link' : 'Sign in')}
+          </button>
+          ${mode==='signIn' ? `<button class="rail-quickmenu-link" id="authForgot" style="padding:8px 0 0;">Forgot password?</button>` : ''}
+          ${mode==='reset'  ? `<button class="rail-quickmenu-link" id="authBackToSignIn" style="padding:8px 0 0;">Back to sign in</button>` : ''}
+        </div>
+        ${state.authMsg ? `<div class="auth-msg ${state.authMsg.ok?'ok':'bad'}">${esc(state.authMsg.text)}</div>` : ''}
+
+        <div class="gate-skip">
+          <div class="gate-warn">
+            <strong>You can skip this.</strong> Everything works signed out — but your projects live
+            only in this browser on this device. Clearing site data, using private browsing, or
+            switching phones loses them, and there is no way to recover them. An account keeps a
+            copy you can get back.
+          </div>
+          <button class="btn btn-outline" id="gateSkip" style="width:100%;">Continue without an account</button>
+          <p class="gate-later">You can create one later in Settings.</p>
+        </div>
+      </div>
+    </div>`;
+
+  const redraw = ()=>renderAuthGate(app);
+  const val = (id)=>{ const el = document.getElementById(id); return el ? el.value : ''; };
+
+  document.querySelectorAll('#gateTabs .subtab').forEach(t=>{
+    t.onclick = ()=>{ state.authMode = t.dataset.authtab; state.authMsg = null; redraw(); };
+  });
+  const forgot = document.getElementById('authForgot');
+  if(forgot) forgot.onclick = ()=>{ state.authMode = 'reset'; state.authMsg = null; redraw(); };
+  const back = document.getElementById('authBackToSignIn');
+  if(back) back.onclick = ()=>{ state.authMode = 'signIn'; state.authMsg = null; redraw(); };
+
+  const submit = document.getElementById('authSubmit');
+  if(submit) submit.onclick = async ()=>{
+    const email = val('authEmail'), pw = val('authPw'), name = val('authName');
+    if(!email){ state.authMsg = {ok:false, text:'Enter your email.'}; return redraw(); }
+    if(state.authMode !== 'reset' && !pw){ state.authMsg = {ok:false, text:'Enter your password.'}; return redraw(); }
+    state.authBusy = true; state.authMsg = null; redraw();
+    let r;
+    if(state.authMode === 'signUp')     r = await signUpWithEmail(email, pw, name);
+    else if(state.authMode === 'reset') r = await sendPasswordReset(email);
+    else                                r = await signInWithEmail(email, pw);
+    state.authBusy = false;
+    state.authMsg = { ok: r.ok, text: r.message };
+    // A confirmed sign-in flips state.authUser and onAuthStateChange re-renders,
+    // which drops the gate on its own. Sign-up usually needs an email
+    // confirmation first, so land back on sign-in with the message showing.
+    if(r.ok && state.authMode === 'signUp' && !state.authUser) state.authMode = 'signIn';
+    if(state.authUser){ state.authGateDone = true; await storeSet('auth-gate-done', true, false); }
+    render();
+  };
+
+  const skip = document.getElementById('gateSkip');
+  if(skip) skip.onclick = ()=>dismissAuthGate();
+}
+
 function renderSettingsScreen(app){
   app.className = '';
   if(state.settingsPage && SETTINGS_PAGES[state.settingsPage]){
@@ -5566,9 +5682,30 @@ function openProfileEditModal(app){
   overlay.querySelector('#addSelfBtnModal').onclick = addSelfToContacts;
 }
 
+/* The welcome gate. Shown once, before anything else, so a new user is offered
+   an account instead of having to go looking for one in Settings.
+
+   Deliberately not shown when: auth is still resolving (it would flash and then
+   vanish for someone already signed in), the user is signed in, they have
+   already answered it, or Supabase is unreachable — an offline first launch
+   must not be met with a sign-in wall it cannot satisfy. */
+function shouldShowAuthGate(){
+  return !state.authChecking
+      && !state.authUser
+      && !state.authGateDone
+      && authAvailable();
+}
+async function dismissAuthGate(){
+  state.authGateDone = true;
+  state.authMsg = null;
+  await storeSet('auth-gate-done', true, false);
+  render();
+}
+
 function render(){
   const app = document.getElementById('app');
   if(!state.loaded){ app.innerHTML = '<div style="color:#eee;padding:40px;font-family:Inter,sans-serif;">Loading your production binder…</div>'; return; }
+  if(shouldShowAuthGate()){ return renderAuthGate(app); }
   if(state.atSettings){ return renderSettingsScreen(app); }
   if(state.atHome || !currentProject()){ return renderHomeScreen(app); }
   if(state.scriptFocusMode && state.view === 'script'){ return renderScriptFocusMode(app); }
