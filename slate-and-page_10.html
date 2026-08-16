@@ -185,6 +185,9 @@
   .modal .qm-option.qm-add{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;}
   .qm-plus{color:var(--tape);font-size:15px;font-weight:700;}
   .qm-option.qm-disabled{opacity:.4;pointer-events:none;}
+  /* Two stacked lists in one modal: keep the add-pool shorter than the chosen
+     list so the wizard's Back/Next stay near the fold. */
+  .modal .picker-list[data-role="pool"]{max-height:min(38vh, 250px);}
   .rail-scroll-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;}
   .rail-depts{padding:10px 0;}
   .rail-all-projects-btn{display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:none;border-bottom:1px solid var(--line);color:var(--ink-mute);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:13px 20px;cursor:pointer;text-align:left;}
@@ -3084,15 +3087,18 @@ async function openNewProjectModal(){
         </div>`;
     } else if(step === 'navtools'){
       const pseudoProj = {type:wiz.type, subtype:wiz.subtype, role:wiz.role, hats:Array.from(wiz.hats)};
-      const options = allToolsFlat().filter(t=>isToolVisible(t, pseudoProj) && t.view !== 'learn' && t.view !== 'dashboard');
-      if(!wiz.navTools) wiz.navTools = new Set(defaultQuickMenu(pseudoProj));
+      const valid = navPickerOptions(pseudoProj).map(t=>t.view);
+      // An ordered list, not a set: the order here is the order in the bar.
+      if(!wiz.navTools){
+        wiz.navTools = defaultQuickMenu(pseudoProj)
+          .filter(v => v !== 'dashboard' && valid.includes(v))
+          .slice(0, MAX_BAR_TOOLS);
+      }
       body = `
         <h3>New Project</h3>${progress}
         <label>Nav bar tools</label>
-        <p class="modal-note" style="margin:2px 0 16px;line-height:1.5;">Pick up to ${MAX_BAR_TOOLS} tools for this project's bottom tab bar — we've pre-picked some based on your role. You can change these and set their order anytime later in Settings.</p>
-        <div class="picker-list" id="npNavTools">
-          ${options.map(t=>`<label class="qm-option"><input type="checkbox" value="${t.view}" ${wiz.navTools.has(t.view)?'checked':''}><span>${esc(t.label)}</span></label>`).join('')}
-        </div>`;
+        <p class="modal-note" style="margin:2px 0 16px;line-height:1.5;">Pick up to ${MAX_BAR_TOOLS} tools for this project's bottom tab bar and set their order — we've pre-picked some based on your role. Change them anytime in Settings.</p>
+        <div id="npNavTools"></div>`;
     } else if(step === 'template'){
       body = `
         <h3>New Project</h3>${progress}
@@ -3183,17 +3189,9 @@ async function openNewProjectModal(){
         };
       });
     } else if(step === 'navtools'){
-      const boxes = () => Array.from(modal.querySelectorAll('#npNavTools input[type=checkbox]'));
-      boxes().forEach(cb=>{
-        cb.onchange = ()=>{
-          if(cb.checked){
-            if(boxes().filter(b=>b.checked).length > MAX_BAR_TOOLS){ cb.checked = false; return; }
-            wiz.navTools.add(cb.value);
-          } else {
-            wiz.navTools.delete(cb.value);
-          }
-        };
-      });
+      const pseudoProj = {type:wiz.type, subtype:wiz.subtype, role:wiz.role, hats:Array.from(wiz.hats)};
+      const host = modal.querySelector('#npNavTools');
+      if(host) renderToolOrderPicker(host, navPickerOptions(pseudoProj), wiz.navTools);
     } else if(step === 'template'){
       modal.querySelectorAll('#npTemplateGrid .type-choice').forEach(el=>{
         el.onclick = ()=>{
@@ -3211,7 +3209,7 @@ async function createProject(wiz){
   const id = uid();
   const type = wiz.type;
   const subtype = PROJECT_TYPES[type].hasSubtype ? wiz.subtype : null;
-  const navTools = wiz.navTools && wiz.navTools.size ? Array.from(wiz.navTools) : null;
+  const navTools = wiz.navTools && wiz.navTools.length ? wiz.navTools.slice(0, MAX_BAR_TOOLS) : null;
   state.projects.push({id, name: wiz.name, type, subtype, role: wiz.role || 'solo', hats: Array.from(wiz.hats), customTabs: navTools, guidedMode:false, createdAt: Date.now(), shared:false});
   await storeSet('projects', state.projects, false);
   const data = emptyProjectData();
@@ -6071,13 +6069,66 @@ async function toggleMode(next){
   }
   render();
 }
+/* The ordered nav-bar tool picker, shared by the new-project wizard's
+   nav-tools step and Settings → Customize Nav Bar. One implementation so the
+   two cannot drift — they previously disagreed, the wizard being a flat
+   checkbox list that could not express order at all.
+
+   `sel` is an array of view ids, mutated in place; the caller reads it back
+   when saving. `onChange` fires after each edit, never on first paint. */
+function renderToolOrderPicker(host, options, sel, onChange){
+  function paint(changed){
+    const unchosen = options.filter(t=>!sel.includes(t.view));
+    host.innerHTML = `
+      <div class="qm-eyebrow">In your nav bar — ${sel.length} of ${MAX_BAR_TOOLS}</div>
+      ${sel.length ? `<div class="picker-list" data-role="chosen">
+        ${sel.map((v,i)=>`<div class="qm-option qm-ordered">
+          <span class="qm-pos">${i+1}</span>
+          <span class="qm-label">${esc(labelForView(v))}</span>
+          <span class="qm-ord-btns">
+            <button class="qm-ord" data-up="${i}" ${i===0?'disabled':''} aria-label="Move up">↑</button>
+            <button class="qm-ord" data-down="${i}" ${i===sel.length-1?'disabled':''} aria-label="Move down">↓</button>
+            <button class="qm-ord qm-rm" data-rm="${i}" aria-label="Remove">✕</button>
+          </span>
+        </div>`).join('')}
+      </div>` : `<p class="modal-note" style="margin:2px 0 10px;">Nothing picked yet — the bar will fall back to sensible defaults.</p>`}
+      ${unchosen.length ? `<div class="qm-eyebrow" style="margin-top:14px;">Add a tool</div>
+      <div class="picker-list" data-role="pool">
+        ${unchosen.map(t=>`<div class="qm-option qm-add ${sel.length>=MAX_BAR_TOOLS?'qm-disabled':''}" data-add="${esc(t.view)}">
+          <span>${esc(t.label)}</span><span class="qm-plus">＋</span>
+        </div>`).join('')}
+      </div>` : ''}`;
+
+    host.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{
+      const i = +b.dataset.up; [sel[i-1], sel[i]] = [sel[i], sel[i-1]]; paint(true);
+    });
+    host.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>{
+      const i = +b.dataset.down; [sel[i+1], sel[i]] = [sel[i], sel[i+1]]; paint(true);
+    });
+    host.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
+      sel.splice(+b.dataset.rm, 1); paint(true);
+    });
+    host.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>{
+      if(sel.length >= MAX_BAR_TOOLS) return;
+      sel.push(el.dataset.add); paint(true);
+    });
+
+    if(changed && onChange) onChange();
+  }
+  paint(false);
+}
+/* Tools offered by the picker. Today is the pinned home button and Learn lives
+   in the drawer, so neither is ever a pickable tab. */
+function navPickerOptions(proj){
+  return allToolsFlat().filter(t=>isToolVisible(t, proj) && t.view !== 'learn' && t.view !== 'dashboard');
+}
+
 function openQuickMenuModal(){
   const proj = currentProject();
-  // Today is the pinned home button, never a pickable tool.
-  const options = allToolsFlat().filter(t=>isToolVisible(t, proj) && t.view !== 'learn' && t.view !== 'dashboard');
+  const options = navPickerOptions(proj);
   const valid = options.map(t=>t.view);
   // Working copy: order matters, so this is a list, not a set.
-  let sel = quickMenuFor(proj).filter(v => v !== 'dashboard' && valid.includes(v)).slice(0, MAX_BAR_TOOLS);
+  const sel = quickMenuFor(proj).filter(v => v !== 'dashboard' && valid.includes(v)).slice(0, MAX_BAR_TOOLS);
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -6091,45 +6142,7 @@ function openQuickMenuModal(){
     </div>
   </div>`;
   document.body.appendChild(overlay);
-  const body = overlay.querySelector('#qmBody');
-
-  function paint(){
-    const unchosen = options.filter(t=>!sel.includes(t.view));
-    body.innerHTML = `
-      <div class="qm-eyebrow">In your nav bar — ${sel.length} of ${MAX_BAR_TOOLS}</div>
-      ${sel.length ? `<div class="picker-list" id="qmChosen">
-        ${sel.map((v,i)=>`<div class="qm-option qm-ordered">
-          <span class="qm-pos">${i+1}</span>
-          <span class="qm-label">${esc(labelForView(v))}</span>
-          <span class="qm-ord-btns">
-            <button class="qm-ord" data-up="${i}" ${i===0?'disabled':''} aria-label="Move up">↑</button>
-            <button class="qm-ord" data-down="${i}" ${i===sel.length-1?'disabled':''} aria-label="Move down">↓</button>
-            <button class="qm-ord qm-rm" data-rm="${i}" aria-label="Remove">✕</button>
-          </span>
-        </div>`).join('')}
-      </div>` : `<p class="modal-note" style="margin:2px 0 10px;">Nothing picked yet — the bar will fall back to sensible defaults.</p>`}
-      ${unchosen.length ? `<div class="qm-eyebrow" style="margin-top:14px;">Add a tool</div>
-      <div class="picker-list" id="qmPool">
-        ${unchosen.map(t=>`<div class="qm-option qm-add ${sel.length>=MAX_BAR_TOOLS?'qm-disabled':''}" data-add="${esc(t.view)}">
-          <span>${esc(t.label)}</span><span class="qm-plus">＋</span>
-        </div>`).join('')}
-      </div>` : ''}`;
-
-    body.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{
-      const i = +b.dataset.up; [sel[i-1], sel[i]] = [sel[i], sel[i-1]]; paint();
-    });
-    body.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>{
-      const i = +b.dataset.down; [sel[i+1], sel[i]] = [sel[i], sel[i+1]]; paint();
-    });
-    body.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
-      sel.splice(+b.dataset.rm, 1); paint();
-    });
-    body.querySelectorAll('[data-add]').forEach(el=>el.onclick=()=>{
-      if(sel.length >= MAX_BAR_TOOLS) return;
-      sel.push(el.dataset.add); paint();
-    });
-  }
-  paint();
+  renderToolOrderPicker(overlay.querySelector('#qmBody'), options, sel);
 
   overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
   overlay.querySelector('#qmCancel').onclick = ()=>overlay.remove();
