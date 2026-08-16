@@ -978,19 +978,25 @@
     .bt-scroll{
       display:flex; align-items:flex-end; gap:2px;
       overflow-x:auto; overflow-y:hidden;
-      padding:6px 6px 0;
-      /* No scroll-snap: snap points sit on the tabs, so they fought the resting
-         position that puts the spacer under the pinned Today button. */
+      padding:6px 0 0;
+      /* Snap per page, not per tab: a swipe moves a whole set of four. */
+      scroll-snap-type:x mandatory;
       -webkit-overflow-scrolling:touch; scrollbar-width:none;
       overscroll-behavior-x:contain;
     }
     .bt-scroll::-webkit-scrollbar{display:none;}
+    /* One page fills the track exactly, so the centre spacer — and with it the
+       pinned Today button — is always at the bar's midpoint. */
+    .bt-page{flex:0 0 100%;display:flex;align-items:flex-end;scroll-snap-align:start;padding:0 4px;box-sizing:border-box;}
+    .bt-half{flex:1;display:flex;min-width:0;}
     .bottom-tab{
-      flex:0 0 auto; width:66px;
+      flex:1 1 0; min-width:0;
       display:flex; flex-direction:column; align-items:center; gap:4px;
       padding:4px 1px; color:var(--ink-mute); cursor:pointer;
       border-radius:14px;
     }
+    /* Placeholder keeping a short last page aligned with the full ones. */
+    .bottom-tab.bt-empty{pointer-events:none;}
     .bottom-tab .bt-icon{display:flex;}
     /* The glyphs carry width/height="17" attributes for the sidebar; at nav
        scale that reads as a speck next to the home button, so size them here. */
@@ -1007,9 +1013,9 @@
       position:absolute; left:50%; transform:translateX(-50%);
       top:-10px; width:70px; padding:0; gap:3px; z-index:2;
     }
-    /* Reserves the pinned button's footprint inside the scroll track so tools
-       come to rest either side of it rather than under it. */
-    .bt-center-gap{flex:0 0 70px;}
+    /* Reserves the pinned button's footprint at the centre of every page, so
+       no tool can ever sit under it. */
+    .bt-center-gap{flex:0 0 76px;}
     .bottom-tab.bt-home .bt-icon{
       width:44px; height:44px; box-sizing:border-box;
       display:flex; align-items:center; justify-content:center;
@@ -5794,16 +5800,30 @@ function render(){
     </div>
     <nav class="bottom-tabs">
       <div class="bt-scroll" id="btScroll">
-        ${bottomTabsFor(proj).map(t=>{
-          const isActive = state.view===t.view || effectiveNavView()===t.view;
-          // Today is pinned outside the scroller; the tools scroll past it, so
-          // the scroller only carries a spacer where the button sits.
-          if(t.home) return '<div class="bt-center-gap" aria-hidden="true"></div>';
-          return `<div class="bottom-tab ${isActive?'active':''}" data-view="${t.view}">
-            <span class="bt-icon">${t.icon}</span>
-            <span class="bt-label">${esc(t.label)}</span>
-          </div>`;
-        }).join('')}
+        ${(()=>{
+          /* Discrete pages of 2 | Today | 2. Every page carries its own centre
+             spacer, so the pinned button always lands in a gap no matter where
+             the track is scrolled — free scrolling let tools slide underneath
+             it. Snapping is per page, so a swipe swaps all four tools at once. */
+          const tools = bottomTabsFor(proj);
+          const PER_PAGE = 4;
+          const pages = [];
+          for(let i = 0; i < tools.length; i += PER_PAGE) pages.push(tools.slice(i, i + PER_PAGE));
+          if(!pages.length) pages.push([]);
+          const cell = t => {
+            if(!t) return '<div class="bottom-tab bt-empty" aria-hidden="true"></div>';
+            const isActive = state.view===t.view || effectiveNavView()===t.view;
+            return `<div class="bottom-tab ${isActive?'active':''}" data-view="${t.view}">
+              <span class="bt-icon">${t.icon}</span>
+              <span class="bt-label">${esc(t.label)}</span>
+            </div>`;
+          };
+          return pages.map(pg=>`<div class="bt-page">
+            <div class="bt-half">${cell(pg[0])}${cell(pg[1])}</div>
+            <div class="bt-center-gap" aria-hidden="true"></div>
+            <div class="bt-half">${cell(pg[2])}${cell(pg[3])}</div>
+          </div>`).join('');
+        })()}
       </div>
       ${(()=>{ const active = state.view==='dashboard' || effectiveNavView()==='dashboard';
         return `<div class="bottom-tab bt-home ${active?'active':''}" data-view="dashboard">
@@ -6048,14 +6068,10 @@ function bottomTabsFor(proj){
     .filter(t => t.view !== 'dashboard' && isToolVisible(t, proj) && !picks.includes(t.view))
     .map(t => t.view);
 
-  // Straight left-to-right in the user's chosen order, split evenly around
-  // Today — so reordering in the picker maps onto the bar exactly as listed.
-  const list = picks.concat(others).slice(0, MAX_BAR_TOOLS);
-  const half = Math.ceil(list.length / 2);
+  // Just the tools, in the user's order. Today is not in this list: it is
+  // pinned to the bar's centre and the layout pages around it.
   const toTab = v => ({ view: v, label: labelForView(v), icon: iconForView(v) });
-  return list.slice(0, half).map(toTab)
-    .concat([{ view: 'dashboard', label: 'Today', icon: iconForView('dashboard'), home: true }])
-    .concat(list.slice(half).map(toTab));
+  return picks.concat(others).slice(0, MAX_BAR_TOOLS).map(toTab);
 }
 async function toggleMode(next){
   state.mode = next;
@@ -13267,19 +13283,16 @@ function setupBottomTabScroller(){
   const dots = document.getElementById('btDots');
   if(!scroll || !dots) return;
 
-  function pageCount(){
-    return Math.max(1, Math.ceil(scroll.scrollWidth / Math.max(1, scroll.clientWidth)));
-  }
+  const pageEls = () => [...scroll.querySelectorAll('.bt-page')];
   function paintDots(){
-    const pages = pageCount();
-    // A bar that fits entirely needs no dots at all.
+    const pages = pageEls().length;
+    // A single page needs no dots at all.
     if(pages < 2){ dots.innerHTML = ''; return; }
     if(dots.childElementCount !== pages){
       dots.innerHTML = Array.from({length:pages}, ()=>'<i></i>').join('');
     }
-    const max = scroll.scrollWidth - scroll.clientWidth;
-    const ratio = max > 0 ? scroll.scrollLeft / max : 0;
-    const active = Math.round(ratio * (pages - 1));
+    const w = Math.max(1, scroll.clientWidth);
+    const active = Math.min(pages - 1, Math.max(0, Math.round(scroll.scrollLeft / w)));
     [...dots.children].forEach((d,i)=>d.classList.toggle('on', i === active));
   }
 
@@ -13291,17 +13304,12 @@ function setupBottomTabScroller(){
     if(h > 0) document.documentElement.style.setProperty('--nav-h', h + 'px');
   }
 
-  // Centre the tab for the current view. The fallback is the spacer under the
-  // pinned Today button, which puts the tools at rest either side of it.
-  const target = scroll.querySelector('.bottom-tab.active') || scroll.querySelector('.bt-center-gap');
-  if(target){
-    // Measured from rects, not offsetLeft: .bt-scroll is statically positioned,
-    // so offsetParent resolves to the fixed .bottom-tabs and offsetLeft is not
-    // relative to the scroll content.
-    const sr = scroll.getBoundingClientRect(), tr = target.getBoundingClientRect();
-    const delta = (tr.left + tr.width / 2) - (sr.left + sr.width / 2);
-    scroll.scrollLeft += delta;   // instant: initial placement, not a gesture
-  }
+  // Open on the page holding the current view, page 1 otherwise. Pages are
+  // exactly one track wide, so this is index × width — no rect maths, and it
+  // lands on a snap point by construction.
+  const pages = pageEls();
+  const idx = Math.max(0, pages.findIndex(pg => pg.querySelector('.bottom-tab.active')));
+  scroll.scrollLeft = idx * scroll.clientWidth;   // instant: initial placement, not a gesture
   paintDots();
 
   let ticking = false;
