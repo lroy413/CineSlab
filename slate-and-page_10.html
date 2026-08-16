@@ -262,7 +262,12 @@
   .fab-add:hover{transform:scale(1.06);box-shadow:0 8px 26px rgba(0,0,0,.4);}
   .fab-add:active{transform:scale(.94);}
 
-  main{flex:1;padding:28px 34px 60px;max-width:1000px;margin:0 auto;width:100%;}
+  /* min-width:0 matters as much as flex:1 here. A flex item defaults to
+     min-width:auto, so main grows to its content instead of the container —
+     which leaves .script-wrap's width indefinite, and an indefinite grid
+     resolves 1fr to max-content. The screenplay then lays out one long line per
+     paragraph and the whole column stretches far past the viewport. */
+  main{flex:1;min-width:0;padding:28px 34px 60px;max-width:1000px;margin:0 auto;width:100%;}
   .view-head{margin-bottom:24px;}
   .view-head .eyebrow{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:600;color:var(--ink-mute);margin-bottom:8px;}
   .view-head h2{font-family:'Inter',sans-serif;text-transform:none;letter-spacing:-.01em;font-weight:700;font-size:30px;margin:0 0 6px;color:var(--heading);}
@@ -503,7 +508,7 @@
   .focus-mode{padding:20px 24px 40px;}
   .focus-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:22px;max-width:1000px;margin-left:auto;margin-right:auto;}
   .focus-menubar{max-width:1000px;margin-left:auto;margin-right:auto;margin-bottom:22px;}
-  .focus-script-wrap{max-width:1000px;margin:0 auto;}
+  .focus-script-wrap{max-width:1000px;margin:0 auto;min-width:0;}
   .script-page-nav{display:flex;align-items:center;gap:2px;background:var(--surface);border-radius:var(--radius-sm);padding:2px;}
   .script-page-nav-standalone{display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:10px;}
   .script-page-nav-standalone .btn-icon-sm{border:1px solid var(--line);background:var(--surface-alt);}
@@ -554,7 +559,10 @@
   .card-title{font-weight:600;font-size:15px;color:var(--ink);}
   .card-sub{font-size:12px;color:var(--ink-mute);margin-top:2px;}
 
-  .script-wrap{display:grid;grid-template-columns:1fr 220px;gap:18px;align-items:start;}
+  /* Both tracks must be allowed to shrink; a grid item's default min-width:auto
+     would otherwise let a long screenplay line or scene name widen the column. */
+  .script-wrap{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:18px;align-items:start;min-width:0;}
+  .script-wrap > *{min-width:0;}
   .script-element-toolbar{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;background:var(--surface-alt);border:1px solid var(--line);border-radius:var(--radius-input);padding:6px;margin-bottom:10px;scrollbar-width:thin;}
   .script-element-toolbar::-webkit-scrollbar{height:4px;}
   .script-element-toolbar::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px;}
@@ -912,8 +920,16 @@
     nav.rail{width:320px;}
     .dept-btn{padding:11px 14px;}
     .dept-tools.open{max-height:460px;}
-    .script-wrap{grid-template-columns:1fr;}
-    .script-page{padding:24px 18px;}
+    .script-wrap{grid-template-columns:minmax(0,1fr);}
+    /* The menubar is a non-wrapping flex row, so on a phone it forces the whole
+       column wider than the screen — which is what made full-screen mode render
+       zoomed out, the browser widening the layout viewport to fit it. It wraps
+       instead of scrolling because its dropdowns are absolutely positioned and
+       an overflow container would clip them. */
+    .script-menubar{flex-wrap:wrap;}
+    #app.focus-mode{min-width:0;}
+    #app.focus-mode > *{min-width:0;max-width:100%;}
+    .script-page{padding:20px 13px 40px;}
     .title-preview-box{padding:36px 16px;min-height:320px;}
     .sblock-tag{display:none;}
     .sblock-annotate{right:2px;top:2px;opacity:.7;background:var(--surface-alt);}
@@ -1042,7 +1058,10 @@
        --nav-h is written by setupBottomTabScroller() because the bar's height
        depends on how many tabs there are and whether labels wrap; the literal
        is only the pre-measurement fallback. */
-    main{padding-bottom:calc(var(--nav-h, 103px) + 30px + env(safe-area-inset-bottom));}
+    /* Reclaim side padding on phones — 34px each side is desktop gutter, and
+       the screenplay column needs the width more than the margin. */
+    main{padding-left:14px;padding-right:14px;
+         padding-bottom:calc(var(--nav-h, 103px) + 30px + env(safe-area-inset-bottom));}
     /* .layout is a flex row, so main is stretched to the container's height and
        tall content overflows its box instead of growing it — which leaves that
        padding-bottom trapped inside a box the content has already spilled past,
