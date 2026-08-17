@@ -17,16 +17,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The whole build: the source HTML becomes the served index.
+      # The whole build: each source HTML becomes a served page.
+      # cam.html is the Camera Companion — a separate app sharing the domain,
+      # reachable at /cam.html. It does not touch CineSlab at /.
       - name: Build
-        run: cp slate-and-page_10.html deploy/index.html
+        run: |
+          cp slate-and-page_10.html deploy/index.html
+          cp cineslab-cam.html deploy/cam.html
 
       - name: Verify deploy folder is complete
         run: |
           set -e
-          for f in index.html icon.svg icon-192.png icon-512.png \
+          for f in index.html cam.html icon.svg icon-192.png icon-512.png \
                    apple-touch-icon-180.png og-image.png \
-                   manifest.webmanifest _headers; do
+                   manifest.webmanifest cam.webmanifest _headers; do
             test -s "deploy/$f" || { echo "missing or empty: deploy/$f"; exit 1; }
           done
           echo "deploy/ contents:"; ls -la deploy

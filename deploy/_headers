@@ -1,16 +1,24 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: geolocation=(self)
+  # camera/microphone are for /cam.html (the Camera Companion). Stated
+  # explicitly rather than left to the default so it's obvious this origin
+  # is meant to reach them; CineSlab at / never asks for either.
+  Permissions-Policy: geolocation=(self), camera=(self), microphone=(self)
 
 # HTML: always revalidate so app updates go live immediately
 /
   Cache-Control: public, max-age=0, must-revalidate
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
+/cam.html
+  Cache-Control: public, max-age=0, must-revalidate
 
-# Manifest: correct type + modest cache
+# Manifests: correct type + modest cache
 /manifest.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+  Cache-Control: public, max-age=86400
+/cam.webmanifest
   Content-Type: application/manifest+json; charset=utf-8
   Cache-Control: public, max-age=86400
 

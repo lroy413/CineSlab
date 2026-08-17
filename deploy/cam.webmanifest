@@ -1,0 +1,18 @@
+{
+  "id": "/cam.html",
+  "name": "CineSlab Cam",
+  "short_name": "CineSlab Cam",
+  "description": "A cinema-camera workflow that teaches while it shoots, and picks up the shots you planned in CineSlab.",
+  "start_url": "/cam.html",
+  "scope": "/cam.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0A0F0D",
+  "theme_color": "#0A0F0D",
+  "categories": ["photo", "video", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
