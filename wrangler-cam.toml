@@ -1,0 +1,31 @@
+# CineSlab Camera Companion — its own Cloudflare Worker (static assets only).
+#
+# Deliberately a SECOND Worker rather than another domain on the `cineslab`
+# one. Static-asset Workers serve a single folder, so pointing a second
+# hostname at `cineslab` would serve CineSlab's index.html at
+# cam.cineslab.app too — the only fix would be a Worker script routing by
+# hostname, i.e. putting code in front of the live app to serve a test app.
+# A separate Worker keeps cineslab.app untouched: if this one breaks,
+# CineSlab does not notice.
+#
+# The "build" is a copy: cineslab-cam.html -> deploy-cam/index.html, plus the
+# shared brand assets. CI does it (see .github/workflows/deploy.yml), which is
+# why everything generated is gitignored rather than committed.
+#
+# Deploy manually with:  npx wrangler deploy --config wrangler-cam.toml
+name = "cineslab-cam"
+compatibility_date = "2025-01-01"
+account_id = "bede02f9ab41bc90bae308430bccdea1"
+
+[assets]
+directory = "./deploy-cam"
+# One HTML file, so unknown paths land on it rather than 404.
+not_found_handling = "single-page-application"
+
+# Wrangler creates the DNS record and certificate for this hostname on first
+# deploy, because cineslab.app is already a zone on the same account. No
+# manual DNS step — but the API token needs zone edit rights as well as
+# Workers rights, which a token minted only for the `cineslab` script may lack.
+[[routes]]
+pattern = "cam.cineslab.app"
+custom_domain = true

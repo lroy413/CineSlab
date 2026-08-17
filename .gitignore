@@ -1,3 +1,9 @@
 .DS_Store
 deploy/index.html
-deploy/cam.html
+# deploy-cam/ keeps only its own _headers and manifest; everything else is
+# copied in by CI from the repo root.
+deploy-cam/index.html
+deploy-cam/icon.svg
+deploy-cam/icon-192.png
+deploy-cam/icon-512.png
+deploy-cam/apple-touch-icon-180.png

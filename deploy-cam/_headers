@@ -1,7 +1,9 @@
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: geolocation=(self)
+  # This origin exists to run a camera. Stated explicitly so the intent is
+  # visible; both already default to same-origin.
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=()
 
 # HTML: always revalidate so app updates go live immediately
 /
@@ -22,6 +24,4 @@
 /icon-512.png
   Cache-Control: public, max-age=86400
 /apple-touch-icon-180.png
-  Cache-Control: public, max-age=86400
-/og-image.png
   Cache-Control: public, max-age=86400

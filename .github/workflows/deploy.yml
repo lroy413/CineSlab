@@ -10,27 +10,31 @@ name: Deploy to Cloudflare
 #      branches: [main]
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which app to deploy'
+        type: choice
+        default: both
+        options: [both, cineslab, cam]
 
 jobs:
-  deploy:
+  # cineslab.app — the live product. Unchanged by the camera app existing.
+  cineslab:
+    if: ${{ inputs.target == 'both' || inputs.target == 'cineslab' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # The whole build: each source HTML becomes a served page.
-      # cam.html is the Camera Companion — a separate app sharing the domain,
-      # reachable at /cam.html. It does not touch CineSlab at /.
+      # The whole build: the source HTML becomes the served index.
       - name: Build
-        run: |
-          cp slate-and-page_10.html deploy/index.html
-          cp cineslab-cam.html deploy/cam.html
+        run: cp slate-and-page_10.html deploy/index.html
 
       - name: Verify deploy folder is complete
         run: |
           set -e
-          for f in index.html cam.html icon.svg icon-192.png icon-512.png \
+          for f in index.html icon.svg icon-192.png icon-512.png \
                    apple-touch-icon-180.png og-image.png \
-                   manifest.webmanifest cam.webmanifest _headers; do
+                   manifest.webmanifest _headers; do
             test -s "deploy/$f" || { echo "missing or empty: deploy/$f"; exit 1; }
           done
           echo "deploy/ contents:"; ls -la deploy
@@ -38,3 +42,32 @@ jobs:
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # cam.cineslab.app — the Camera Companion, its own Worker.
+  # A separate job on purpose: this one failing must not stop CineSlab
+  # shipping, and CineSlab failing must not block a camera test build.
+  cam:
+    if: ${{ inputs.target == 'both' || inputs.target == 'cam' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same one-copy "build", plus the brand assets it shares with CineSlab.
+      - name: Build
+        run: |
+          cp cineslab-cam.html deploy-cam/index.html
+          cp icon.svg icon-192.png icon-512.png apple-touch-icon-180.png deploy-cam/
+
+      - name: Verify deploy-cam folder is complete
+        run: |
+          set -e
+          for f in index.html icon.svg icon-192.png icon-512.png \
+                   apple-touch-icon-180.png manifest.webmanifest _headers; do
+            test -s "deploy-cam/$f" || { echo "missing or empty: deploy-cam/$f"; exit 1; }
+          done
+          echo "deploy-cam/ contents:"; ls -la deploy-cam
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy --config wrangler-cam.toml

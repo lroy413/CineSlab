@@ -139,9 +139,18 @@ Noted here so they're not discovered mid-build. None are blockers; they shape wh
 
 **File:** `cineslab-cam.html` — one self-contained page, same architecture as CineSlab
 (inline `<style>` + one `<script>` IIFE, no build step, no framework, nothing fetched at
-boot). Open it in a browser, or serve the folder statically. **The camera needs HTTPS or
-localhost** — opened as a bare `file://` URL the viewfinder won't start, though every
-other screen will.
+boot). **The camera needs HTTPS or localhost** — opened as a bare `file://` URL the
+viewfinder won't start, though every other screen will.
+
+**Deployed at `cam.cineslab.app`**, as its own Cloudflare Worker (`cineslab-cam`,
+config in `wrangler-cam.toml`, assets in `deploy-cam/`). It is deliberately *not* a
+second hostname on the `cineslab` Worker: static-asset Workers serve one folder, so
+that would need a Worker script routing by hostname — code in front of the live app,
+to serve a test app. Two Workers means cineslab.app is untouched by anything here.
+
+Deploy: **Actions → "Deploy to Cloudflare" → Run workflow**, and pick a target
+(`both` / `cineslab` / `cam`). The two jobs are independent — either can fail without
+stopping the other.
 
 ### Working
 
@@ -184,6 +193,16 @@ hands over. Two consequences worth knowing:
   lengths, so Setup → Lens calibration holds the 35mm-equivalent base for each physical
   camera. The defaults are typical recent-phone values; wrong numbers there make every
   focal label wrong.
+
+### First-deploy caveat
+
+The first `cam` run creates a **new** Worker and attaches a **new** custom domain.
+`CLOUDFLARE_API_TOKEN` was minted for the existing `cineslab` Worker, so it may not
+carry the rights to do either. If the job fails on permissions, regenerate the token
+from Cloudflare's **Edit Cloudflare Workers** template, scoped to the account *and* the
+`cineslab.app` zone (the zone part is what lets Wrangler create the DNS record and
+certificate for `cam.cineslab.app` without a manual step), then update the repo secret.
+Nothing about CineSlab's own deploy changes either way.
 
 ### Verified
 

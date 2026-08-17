@@ -1,10 +1,10 @@
 {
-  "id": "/cam.html",
+  "id": "/",
   "name": "CineSlab Cam",
   "short_name": "CineSlab Cam",
   "description": "A cinema-camera workflow that teaches while it shoots, and picks up the shots you planned in CineSlab.",
-  "start_url": "/cam.html",
-  "scope": "/cam.html",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0A0F0D",
