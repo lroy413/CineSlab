@@ -2,7 +2,7 @@
 
 _Last updated: 2026-08-17. Living doc — add ideas here as they come up rather than losing them in chat._
 
-**Status:** Idea stage, no build started. Not a priority until CineSlab (Nov 15 target) is polished.
+**Status:** Phase 1 built — `cineslab-cam.html`. See §7 for what actually works and what doesn't. CineSlab (Nov 15 target) is still the priority; this ships when it ships.
 **Ecosystem:** Second app under Concrete Films, same Supabase backend as CineSlab, single-file HTML architecture consistent with GEM / Oboros / Freedom Engine.
 **Audience:** Learning/growing independent filmmakers, young adults and teens getting into film. Pro-grade depth, teaching-first UX.
 
@@ -132,3 +132,64 @@ Noted here so they're not discovered mid-build. None are blockers; they shape wh
 - **LUT preview is fine; LUT bake-in is the expensive part.** Live `.cube` preview on the viewfinder is a WebGL shader over a video texture — cheap and very doable. Applying it to recorded footage at capture time is not; plan on preview-only for Phase 1 and treat baked export as its own chunk of work.
 - **Timecode and multi-cam sync need a clock story.** Device clocks drift. Whatever "synced timecode" means in Phase 3 has to be defined (shared start marker? audio clap sync? NTP offset?) before it's promised in the feature list.
 - **Time-lapse calculator is the cheapest high-value piece.** It's pure math plus presets — no camera API dependency at all. It could ship inside CineSlab itself well before the camera app exists, and it would validate the teaching-first UX with real users early.
+
+---
+
+## 7. Phase 1 — what is actually built
+
+**File:** `cineslab-cam.html` — one self-contained page, same architecture as CineSlab
+(inline `<style>` + one `<script>` IIFE, no build step, no framework, nothing fetched at
+boot). Open it in a browser, or serve the folder statically. **The camera needs HTTPS or
+localhost** — opened as a bare `file://` URL the viewfinder won't start, though every
+other screen will.
+
+### Working
+
+| Area | State |
+|---|---|
+| Viewfinder | `getUserMedia`, front/back switching, resolution picker |
+| Focal length sim | 16–135mm equivalent, physical lens chosen automatically, digital crop done in-shader |
+| Manual controls | ISO/EI, shutter angle, WB Kelvin, frame rate — **each gated on what the device actually exposes** |
+| HUD | 14 toggleable modules, Minimal / Standard / Full Pro presets, verified non-overlapping at 320–768px |
+| Scopes | Waveform and RGB histogram, sampled off the ungraded source |
+| Looks | 5 original built-in LUTs + `.cube` import (3D, ≤64³), strength slider, preview-vs-baked choice |
+| Assist | Zebras (IRE threshold) and focus peaking, both in-shader |
+| Recording | MediaRecorder, clean or baked, writes a file named from the slate |
+| Camera reports | Auto-filled per take from live state, continuity flags, CSV export |
+| Time-lapse | Full calculator + subject presets + warnings, live interval capture, in-browser clip assembly |
+| CineSlab sync | Sign in, pick project, pull shot lists read-only, load a shot into the camera |
+| Teaching | Per-control explainers (switchable off) + glossary |
+
+### Deliberately not built
+
+- **Aperture control.** No browser API exists for iris, on any platform. It's shown as a
+  hardware readout, never as something you can set.
+- **Writing back to CineSlab.** Phase 3. Two apps racing to own the same
+  `project_sections` row is a bug waiting to happen.
+- **The fundamentals lessons** (§2.5 — 180-degree rule diagrams, composition
+  before/afters, live depth-of-field). Phase 2. The glossary stands in for now.
+- **Look-matching, LUT store, multi-camera sync.** Phase 2/3.
+
+### Known limits, stated in the app itself
+
+The app never fakes a control. `getCapabilities()` decides whether ISO / shutter / WB /
+focus / zoom are offered, and where a device refuses, the control renders locked with the
+reason. Setup carries a live capability table so you can see exactly what any given phone
+hands over. Two consequences worth knowing:
+
+- **Shutter angle is often advisory.** Where `exposureTime` isn't settable, the angle you
+  pick still goes into the camera report, but the sensor does its own thing — so the
+  report records both what was asked for and what was applied.
+- **Focal length labels depend on calibration.** No API reports a phone's real focal
+  lengths, so Setup → Lens calibration holds the 35mm-equivalent base for each physical
+  camera. The defaults are typical recent-phone values; wrong numbers there make every
+  focal label wrong.
+
+### Verified
+
+Headless Chromium with a fake camera device, at 320 / 390 / 768px: boot, camera start,
+all six deck panels, every view, the LUT actually reaching the shader (pixel-diffed), a
+recorded take writing a file and auto-creating its report, CSV export, interval capture
+and clip assembly, and legacy-report migration. Zero console errors. **No real-iOS
+testing was possible in a cloud sandbox** — Safari is both the most restrictive target
+and the one most likely to behave differently.

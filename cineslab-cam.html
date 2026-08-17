@@ -1,0 +1,3309 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0A0F0D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="CineSlab Camera Companion — a cinema-camera workflow that teaches while it shoots.">
+<title>CineSlab Cam</title>
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Dark-first on purpose: this is a viewfinder. A light UI beside a live
+     image wrecks your read of exposure, and on set it wrecks your night eyes.
+     The token names mirror CineSlab's so shared markup keeps its look. */
+  :root{
+    --page:#F2EFE8; --slate:#0E1512; --slate-soft:#16231C;
+    --chalk:#5FC08E; --tape:#2E9E6B;
+    --ink:#EAEDE9; --ink-mute:#8A958D; --line:#20302A;
+    --heading:#FFFFFF;
+    --surface-app:#0A0F0D; --surface:#121A16; --surface-alt:#18211C; --surface-alt-hover:#212C26;
+    --nav-glass:rgba(20,30,25,.72); --nav-glass-border:rgba(95,192,142,.20);
+    --note-bg:#153025; --note-border:#264A3A;
+    --warn:#E0A33E; --warn-bg:#2E2413; --warn-border:#5A4620;
+    --danger:#E26E6E; --rec:#E2483F;
+    --radius-card:10px; --radius-input:6px; --radius-btn:6px;
+    --nav-h:60px;
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;overscroll-behavior:none;}
+  body{
+    background:var(--surface-app); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+  }
+  ::selection{background:var(--tape);color:#fff;}
+  #app{display:flex;flex-direction:column;height:100dvh;}
+
+  /* ==== TYPE ==== */
+  h1,h2,h3{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.04em;margin:0;color:var(--heading);}
+  h2{font-size:19px;text-transform:uppercase;}
+  h3{font-size:15px;text-transform:uppercase;letter-spacing:.06em;}
+  .mono{font-variant-numeric:tabular-nums;font-family:'Oswald',sans-serif;letter-spacing:.04em;}
+  .muted{color:var(--ink-mute);}
+  .tiny{font-size:11px;}
+
+  /* ==== HEADER ==== */
+  header.bar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    background:#103A2C;border-bottom:1px solid rgba(255,255,255,.08);flex:0 0 auto;
+  }
+  header.bar.overlay{
+    position:absolute;top:0;left:0;right:0;z-index:6;
+    background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0));
+    border-bottom:none;pointer-events:none;
+  }
+  header.bar.overlay .brand-sub{color:rgba(255,255,255,.75);}
+  header.bar.overlay button{pointer-events:auto;}
+  .brand{display:flex;align-items:center;gap:9px;min-width:0;}
+  .brand h1{font-size:16px;text-transform:uppercase;font-weight:700;color:var(--page);}
+  .brand-sub{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#9BC3AC;font-weight:600;}
+
+  /* ==== BUTTONS ==== */
+  .btn{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:13px;border:none;
+    border-radius:var(--radius-btn);padding:9px 14px;cursor:pointer;
+    transition:transform .08s ease, filter .12s ease, background .15s ease;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:.42;cursor:not-allowed;}
+  .btn-tape{background:var(--tape);color:#fff;}
+  .btn-chalk{background:var(--chalk);color:var(--slate);}
+  .btn-outline{background:transparent;color:var(--ink);border:1px solid var(--line);}
+  .btn-ghost{background:rgba(255,255,255,.08);color:var(--ink);}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger);}
+  .btn-sm{padding:6px 10px;font-size:12px;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+  /* ==== SCROLLING VIEWS ==== */
+  .layout{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+  .page{padding:16px 16px calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px);max-width:760px;margin:0 auto;}
+  .view-head{margin-bottom:14px;}
+  .view-head p{margin:6px 0 0;color:var(--ink-mute);font-size:13px;line-height:1.5;}
+  .paper{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-card);padding:14px;margin-bottom:14px;}
+  .section-title{
+    font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--chalk);margin:18px 0 8px;
+  }
+  .note{background:var(--note-bg);border:1px solid var(--note-border);border-radius:var(--radius-card);padding:11px 13px;font-size:12.5px;line-height:1.55;margin-bottom:12px;}
+  .note.warn{background:var(--warn-bg);border-color:var(--warn-border);}
+  .note strong{color:var(--heading);}
+  .empty{text-align:center;color:var(--ink-mute);padding:28px 12px;font-size:13.5px;line-height:1.6;}
+
+  /* ==== FORM ==== */
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+  .field label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-mute);font-weight:600;}
+  input[type=text],input[type=number],input[type=email],input[type=password],select,textarea{
+    background:var(--surface-alt);color:var(--ink);border:1px solid var(--line);
+    border-radius:var(--radius-input);padding:9px 10px;font-size:15px;font-family:inherit;width:100%;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--tape);}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0 12px;}
+  .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .switch:last-child{border-bottom:none;}
+  .switch .lbl{font-size:14px;}
+  .switch .lbl small{display:block;color:var(--ink-mute);font-size:11.5px;margin-top:2px;line-height:1.45;}
+  .switch input[type=checkbox]{width:44px;height:26px;appearance:none;background:var(--surface-alt);border:1px solid var(--line);border-radius:13px;position:relative;flex:0 0 auto;transition:background .15s;}
+  .switch input[type=checkbox]:checked{background:var(--tape);border-color:var(--tape);}
+  .switch input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s;}
+  .switch input[type=checkbox]:checked::after{transform:translateX(18px);}
+
+  /* ==== VIEWFINDER ==== */
+  .vf{position:relative;flex:1 1 auto;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  .vf video,.vf canvas.gl{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+  .vf video.hidden-src{opacity:0;pointer-events:none;}
+  .vf-msg{position:relative;z-index:3;text-align:center;padding:30px 22px;max-width:420px;}
+  .vf-msg h3{margin-bottom:8px;}
+  .vf-msg p{color:var(--ink-mute);font-size:13.5px;line-height:1.6;margin:0 0 14px;}
+
+  /* ==== HUD ==== */
+  .hud{position:absolute;inset:0;pointer-events:none;z-index:4;font-family:'Oswald',sans-serif;}
+  /* Corner zones are laid out as two full-width rows rather than four
+     free-floating boxes. Shrink-to-fit corners look fine on the Minimal
+     preset and collide the moment Full Pro turns everything on. */
+  .hud-row{position:absolute;left:0;right:0;display:flex;justify-content:space-between;gap:10px;padding:0 12px;}
+  .hud-top{top:calc(env(safe-area-inset-top) + 48px);align-items:flex-start;}
+  .hud-bottom{bottom:12px;align-items:flex-end;}
+  .hud-group{display:flex;gap:8px;flex-wrap:wrap;min-width:0;}
+  .hud-group.right{justify-content:flex-end;}
+  .hud-bottom .hud-group{gap:6px;}
+  .hud-mod{
+    background:rgba(0,0,0,.42);border-radius:4px;padding:3px 7px;
+    text-shadow:0 1px 3px rgba(0,0,0,.9);line-height:1.15;
+  }
+  .hud-mod .k{display:block;font-size:8.5px;letter-spacing:.14em;color:rgba(255,255,255,.62);text-transform:uppercase;}
+  .hud-mod .v{display:block;font-size:14px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;}
+  .hud-mod .v.warn{color:var(--warn);}
+  .hud-mod .v.rec{color:var(--rec);}
+  .hud-mod.wide .v{font-size:17px;letter-spacing:.06em;}
+  .hud-scope{background:rgba(0,0,0,.5);border-radius:4px;padding:3px;}
+  .hud-scope canvas{display:block;width:112px;height:56px;}
+  .hud-meters{display:flex;flex-direction:column;gap:3px;width:104px;}
+  .hud-meters .track{height:5px;background:rgba(255,255,255,.16);border-radius:3px;overflow:hidden;}
+  .hud-meters .fill{height:100%;width:0;background:var(--chalk);transition:width .06s linear;}
+  .hud-meters .fill.hot{background:var(--rec);}
+  .rec-border{position:absolute;inset:0;border:3px solid var(--rec);pointer-events:none;opacity:0;transition:opacity .2s;}
+  .rec-border.on{opacity:1;animation:recPulse 2s ease-in-out infinite;}
+  @keyframes recPulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+  .digital-flag{
+    background:var(--warn);color:#1a1206;border-radius:3px;padding:2px 6px;
+    font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+  }
+
+  /* ==== CONTROL DECK ==== */
+  .deck{
+    flex:0 0 auto;background:var(--surface);border-top:1px solid var(--line);
+    padding-bottom:calc(env(safe-area-inset-bottom));
+  }
+  .deck-strip{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;scrollbar-width:none;}
+  .deck-strip::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto;background:var(--surface-alt);border:1px solid var(--line);border-radius:var(--radius-btn);
+    padding:5px 10px;min-width:62px;text-align:center;cursor:pointer;color:var(--ink);
+    font-family:'Oswald',sans-serif;transition:border-color .12s,background .12s;
+  }
+  .chip .k{display:block;font-size:8.5px;letter-spacing:.12em;color:var(--ink-mute);text-transform:uppercase;}
+  .chip .v{display:block;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .chip.active{border-color:var(--chalk);background:var(--surface-alt-hover);}
+  .chip.locked{opacity:.4;}
+  .chip.auto .v{color:var(--ink-mute);}
+  .deck-panel{padding:0 12px 10px;border-top:1px solid var(--line);}
+  .deck-panel .row{display:flex;align-items:center;gap:10px;padding-top:10px;}
+  .deck-panel .row .val{font-family:'Oswald',sans-serif;font-size:15px;min-width:74px;text-align:right;font-variant-numeric:tabular-nums;}
+  input[type=range]{flex:1;appearance:none;height:26px;background:transparent;}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line);border-radius:2px;}
+  input[type=range]::-webkit-slider-thumb{appearance:none;width:22px;height:22px;border-radius:50%;background:var(--chalk);margin-top:-9.5px;}
+  input[type=range]::-moz-range-track{height:3px;background:var(--line);border-radius:2px;}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border:none;border-radius:50%;background:var(--chalk);}
+  .explain{font-size:12px;line-height:1.55;color:var(--ink-mute);padding:8px 0 2px;}
+  .explain b{color:var(--chalk);font-weight:600;}
+  .lens-row{display:flex;gap:6px;overflow-x:auto;padding:8px 10px 0;scrollbar-width:none;}
+  .lens-row::-webkit-scrollbar{display:none;}
+  .lens{
+    flex:0 0 auto;background:var(--surface-alt);border:1px solid var(--line);color:var(--ink);
+    border-radius:14px;padding:5px 12px;font-family:'Oswald',sans-serif;font-size:13px;cursor:pointer;position:relative;
+  }
+  .lens.active{background:var(--chalk);color:var(--slate);border-color:var(--chalk);}
+  .lens.digital::after{content:'D';position:absolute;top:-4px;right:-3px;background:var(--warn);color:#1a1206;font-size:8px;font-weight:700;border-radius:50%;width:13px;height:13px;line-height:13px;text-align:center;}
+  .shutter-row{display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 12px;}
+  .rec-btn{
+    width:62px;height:62px;border-radius:50%;border:3px solid rgba(255,255,255,.85);
+    background:var(--rec);cursor:pointer;flex:0 0 auto;transition:border-radius .18s,transform .08s;
+  }
+  .rec-btn:active{transform:scale(.94);}
+  .rec-btn.recording{border-radius:14px;background:var(--rec);}
+  .rec-side{width:62px;display:flex;justify-content:center;}
+
+  /* ==== BOTTOM NAV ==== */
+  nav.tabs{
+    flex:0 0 auto;display:flex;justify-content:space-around;align-items:stretch;
+    background:var(--nav-glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--nav-glass-border);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabs button{
+    flex:1;background:none;border:none;color:var(--ink-mute);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px 7px;
+    font-family:'Oswald',sans-serif;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  }
+  nav.tabs button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+  nav.tabs button.active{color:var(--chalk);}
+
+  /* ==== TABLES / LISTS ==== */
+  .list-item{
+    display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);
+  }
+  .list-item:last-child{border-bottom:none;}
+  .list-item .grow{flex:1;min-width:0;}
+  .list-item .ttl{font-size:14.5px;font-weight:600;}
+  .list-item .sub{font-size:11.5px;color:var(--ink-mute);margin-top:2px;line-height:1.45;word-break:break-word;}
+  table.data{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.data th{
+    text-align:left;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-mute);padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  table.data td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .badge{
+    display:inline-block;font-family:'Oswald',sans-serif;font-size:9.5px;letter-spacing:.09em;
+    text-transform:uppercase;padding:2px 6px;border-radius:3px;background:var(--surface-alt);color:var(--ink-mute);
+  }
+  .badge.on{background:var(--tape);color:#fff;}
+  .badge.warn{background:var(--warn);color:#1a1206;}
+
+  /* ==== MODALS ==== */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.66);z-index:60;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .modal{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-card);
+    padding:18px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto;
+  }
+  .modal h3{margin-bottom:10px;}
+  .modal p{font-size:13.5px;line-height:1.6;color:var(--ink-mute);margin:0 0 14px;}
+  .modal label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-mute);font-weight:600;display:block;margin-bottom:5px;}
+  .modal input{margin-bottom:14px;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;}
+
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 18px);
+    background:var(--slate-soft);border:1px solid var(--line);color:var(--ink);
+    padding:10px 16px;border-radius:20px;font-size:13px;z-index:70;max-width:88vw;text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);
+  }
+  .toast.err{border-color:var(--danger);color:var(--danger);}
+
+  @media (min-width:700px){
+    .hud-scope canvas{width:168px;height:84px;}
+  }
+  @media (max-width:360px){
+    .hud-scope canvas{width:92px;height:46px;}
+    .hud-mod .v{font-size:13px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+  }
+</style>
+</head>
+<body>
+<div id="app"><div class="empty" style="padding-top:80px;">Starting up…</div></div>
+<script>
+(function(){
+'use strict';
+/* =========================================================
+   CINESLAB CAMERA COMPANION — Phase 1
+   Single self-contained HTML file, same architecture as CineSlab:
+   inline <style> + one <script> IIFE, no build step, no framework.
+   Every CDN dependency is optional; the app runs fully offline.
+========================================================= */
+const APP_NAME = 'CineSlab Cam';
+const APP_VERSION = '0.1.0';
+
+/* =========================================================
+   STORAGE FALLBACK
+   Lifted from CineSlab so both apps behave identically: the Claude
+   artifact host provides window.storage; everywhere else we install a
+   drop-in replacement. Backend is chosen by actually writing, because
+   private-browsing modes expose IndexedDB/localStorage and then throw.
+   storage.get THROWS for a missing key — that throw is load-bearing.
+========================================================= */
+(function installStorageFallback(){
+  if(typeof window.storage !== 'undefined' && window.storage) return;
+
+  const DB_NAME = 'cineslab-cam', STORE = 'kv', DB_VERSION = 1;
+  const k = (key, shared)=> (shared ? 'shared:' : 'local:') + key;
+
+  function openDb(){
+    return new Promise((resolve, reject)=>{
+      if(!('indexedDB' in window)) return reject(new Error('no indexedDB'));
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = ()=>{
+        const db = req.result;
+        if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      };
+      req.onsuccess = ()=>resolve(req.result);
+      req.onerror  = ()=>reject(req.error || new Error('indexedDB open failed'));
+    });
+  }
+  let dbPromise = null;
+  function db(){ if(!dbPromise) dbPromise = openDb(); return dbPromise; }
+  function run(mode, fn){
+    return db().then(d=>new Promise((resolve, reject)=>{
+      const t = d.transaction(STORE, mode);
+      const store = t.objectStore(STORE);
+      let result;
+      try { result = fn(store); } catch(e){ return reject(e); }
+      t.oncomplete = ()=>resolve(result && result.__req ? result.__req.result : result);
+      t.onerror    = ()=>reject(t.error);
+      t.onabort    = ()=>reject(t.error || new Error('transaction aborted'));
+    }));
+  }
+  const wrap = (req)=>({ __req: req });
+
+  const idb = {
+    async get(key, shared){
+      const v = await run('readonly', s=>wrap(s.get(k(key, shared))));
+      if(v === undefined) throw new Error('not found');
+      return { key, value: v, shared: !!shared };
+    },
+    async set(key, value, shared){
+      await run('readwrite', s=>wrap(s.put(value, k(key, shared))));
+      return { key, value, shared: !!shared };
+    },
+    async delete(key, shared){
+      await run('readwrite', s=>wrap(s.delete(k(key, shared))));
+      return { key, deleted: true, shared: !!shared };
+    },
+    async list(prefix, shared){
+      const keys = await run('readonly', s=>wrap(s.getAllKeys()));
+      const p = k(prefix || '', shared);
+      return { keys:(keys||[]).filter(x=>typeof x==='string' && x.startsWith(p))
+                              .map(x=>x.slice(shared ? 7 : 6)), shared:!!shared };
+    }
+  };
+  const ls = {
+    async get(key, shared){
+      const v = localStorage.getItem(k(key, shared));
+      if(v === null) throw new Error('not found');
+      return { key, value: v, shared: !!shared };
+    },
+    async set(key, value, shared){ localStorage.setItem(k(key, shared), value); return { key, value, shared:!!shared }; },
+    async delete(key, shared){ localStorage.removeItem(k(key, shared)); return { key, deleted:true, shared:!!shared }; },
+    async list(prefix, shared){
+      const p = k(prefix||'', shared), keys = [];
+      for(let i=0;i<localStorage.length;i++){
+        const key = localStorage.key(i);
+        if(key && key.startsWith(p)) keys.push(key.slice(shared ? 7 : 6));
+      }
+      return { keys, shared:!!shared };
+    }
+  };
+  const mem = (()=>{ const m = {}; return {
+    async get(key, shared){ const kk=k(key,shared); if(!(kk in m)) throw new Error('not found'); return {key, value:m[kk], shared:!!shared}; },
+    async set(key, value, shared){ m[k(key,shared)] = value; return {key, value, shared:!!shared}; },
+    async delete(key, shared){ delete m[k(key,shared)]; return {key, deleted:true, shared:!!shared}; },
+    async list(prefix, shared){ const p=k(prefix||'',shared);
+      return { keys:Object.keys(m).filter(x=>x.startsWith(p)).map(x=>x.slice(shared?7:6)), shared:!!shared }; }
+  };})();
+
+  let backend = idb, name = 'IndexedDB';
+  window.storage = {
+    get:    (key, shared)=>backend.get(key, shared),
+    set:    (key, value, shared)=>backend.set(key, value, shared),
+    delete: (key, shared)=>backend.delete(key, shared),
+    list:   (prefix, shared)=>backend.list(prefix, shared)
+  };
+  window.__storageBackend = ()=>name;
+  (async ()=>{
+    try{
+      await idb.set('__probe','1',false); await idb.delete('__probe',false);
+    } catch(e){
+      try{
+        await ls.set('__probe','1',false); await ls.delete('__probe',false);
+        backend = ls; name = 'localStorage';
+        console.warn(APP_NAME + ': IndexedDB unavailable, using localStorage (~5MB total).');
+      } catch(e2){
+        backend = mem; name = 'memory';
+        console.warn(APP_NAME + ': no persistent storage. Settings and reports will be lost when this tab closes.');
+      }
+    }
+  })();
+})();
+
+/* =========================================================
+   STORAGE HELPERS
+========================================================= */
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+async function withRetry(fn, attempts=3, baseDelay=300){
+  let lastErr;
+  for(let i=0;i<attempts;i++){
+    try{ return await fn(); }
+    catch(e){ lastErr = e; if(i < attempts-1) await sleep(baseDelay*(i+1)); }
+  }
+  throw lastErr;
+}
+async function storeGet(key, shared){
+  shared = !!shared;
+  // A missing key is a settled answer, not a transient failure — one quick
+  // retry only, so a first launch doesn't sit on "Starting up…".
+  try{
+    const r = await withRetry(()=>window.storage.get(key, shared), 2, 120);
+    return r ? JSON.parse(r.value) : null;
+  } catch(e){ return null; }
+}
+async function storeSet(key, value, shared){
+  shared = !!shared;
+  try{ await withRetry(()=>window.storage.set(key, JSON.stringify(value), shared)); return true; }
+  catch(e){ console.error('storage set failed after retries', e); return false; }
+}
+async function storeDelete(key, shared){
+  shared = !!shared;
+  try{ await withRetry(()=>window.storage.delete(key, shared)); }catch(e){}
+}
+
+const KEY_SETTINGS = 'cam-settings';
+const KEY_REPORTS  = 'cam-reports';
+const KEY_LUTS     = 'cam-luts';
+const KEY_SHOTS    = 'cam-shots';
+const MAX_REPORTS  = 50;
+const MAX_LUTS     = 24;
+const LUT_BYTES_LIMIT = 4 * 1024 * 1024;   // a 64³ .cube lands around 3MB of text
+
+let saveTimer = null;
+function debouncedSaveSettings(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveSettings, 600);
+}
+async function saveSettings(){ await storeSet(KEY_SETTINGS, state.settings, false); }
+async function saveReports(){ await storeSet(KEY_REPORTS, state.reports, false); }
+async function saveLuts(){
+  // Built-ins are generated at boot, so only user imports are worth storing.
+  await storeSet(KEY_LUTS, state.luts.filter(l=>!l.builtin), false);
+}
+
+/* =========================================================
+   SMALL HELPERS
+========================================================= */
+function esc(s){
+  return (s||'').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function uid(){
+  if(typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+function clamp(v, lo, hi){ return Math.min(hi, Math.max(lo, v)); }
+function $(sel, root){ return (root||document).querySelector(sel); }
+function $$(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+function pad2(n){ return String(Math.floor(n)).padStart(2,'0'); }
+
+/* Human-readable duration. Used by the time-lapse calculator and the
+   recording timer, so it has to stay honest at both ends of the scale. */
+function fmtDuration(sec){
+  if(!isFinite(sec)) return '—';
+  sec = Math.max(0, Math.round(sec));
+  const d = Math.floor(sec/86400), h = Math.floor(sec%86400/3600),
+        m = Math.floor(sec%3600/60), s = sec%60;
+  if(d) return d + 'd ' + h + 'h ' + m + 'm';
+  if(h) return h + 'h ' + m + 'm ' + s + 's';
+  if(m) return m + 'm ' + s + 's';
+  return s + 's';
+}
+function fmtClock(sec){
+  if(!isFinite(sec)) return '00:00:00';
+  sec = Math.max(0, Math.floor(sec));
+  return pad2(Math.floor(sec/3600)) + ':' + pad2(Math.floor(sec%3600/60)) + ':' + pad2(sec%60);
+}
+function fmtBytes(b){
+  if(!isFinite(b) || b <= 0) return '—';
+  const u = ['B','KB','MB','GB','TB'];
+  let i = 0;
+  while(b >= 1024 && i < u.length-1){ b /= 1024; i++; }
+  return (b >= 100 ? b.toFixed(0) : b >= 10 ? b.toFixed(1) : b.toFixed(2)) + ' ' + u[i];
+}
+function fmtInterval(sec){
+  if(!isFinite(sec) || sec <= 0) return '—';
+  if(sec < 1) return (sec*1000).toFixed(0) + ' ms';
+  if(sec < 60) return (sec >= 10 ? sec.toFixed(1) : sec.toFixed(2)).replace(/\.?0+$/,'') + ' s';
+  return fmtDuration(sec);
+}
+
+/* =========================================================
+   MODALS — native prompt/confirm/alert are blocked in the sandbox frame
+========================================================= */
+function openPromptModal(title, label, defaultValue){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal">
+      <h3>${esc(title)}</h3>
+      ${label ? `<label>${esc(label)}</label>` : ''}
+      <input type="text" id="pmInput" value="${esc(defaultValue||'')}">
+      <div class="modal-actions">
+        <button class="btn btn-outline btn-sm" id="pmCancel">Cancel</button>
+        <button class="btn btn-tape btn-sm" id="pmOk">OK</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('#pmInput');
+    setTimeout(()=>{ input.focus(); input.select(); }, 30);
+    function done(val){ overlay.remove(); resolve(val); }
+    overlay.querySelector('#pmCancel').onclick = ()=>done(null);
+    overlay.querySelector('#pmOk').onclick = ()=>done(input.value.trim());
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); done(input.value.trim()); }
+      if(e.key==='Escape'){ done(null); }
+    });
+    overlay.addEventListener('click', e=>{ if(e.target===overlay) done(null); });
+  });
+}
+function openConfirmModal(title, message, confirmLabel){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal">
+      <h3>${esc(title)}</h3>
+      <p>${esc(message)}</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline btn-sm" id="cmCancel">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="cmOk">${esc(confirmLabel||'Delete')}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    function done(val){ overlay.remove(); resolve(val); }
+    overlay.querySelector('#cmCancel').onclick = ()=>done(false);
+    overlay.querySelector('#cmOk').onclick = ()=>done(true);
+    overlay.addEventListener('click', e=>{ if(e.target===overlay) done(false); });
+  });
+}
+function openAlertModal(title, message){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal">
+      <h3>${esc(title)}</h3>
+      <p>${esc(message)}</p>
+      <div class="modal-actions"><button class="btn btn-tape btn-sm" id="amOk">OK</button></div>
+    </div>`;
+    document.body.appendChild(overlay);
+    function done(){ overlay.remove(); resolve(); }
+    overlay.querySelector('#amOk').onclick = done;
+    overlay.addEventListener('click', e=>{ if(e.target===overlay) done(); });
+  });
+}
+let toastTimer = null;
+function toast(msg, isErr){
+  const old = $('.toast'); if(old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'toast' + (isErr ? ' err' : '');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.remove(); }, isErr ? 5000 : 2800);
+}
+
+/* =========================================================
+   STATE
+========================================================= */
+const HUD_MODULES = [
+  { key:'tc',        label:'Timecode',        zone:'tl', desc:'Running timecode. Post uses it to line takes up.' },
+  { key:'lens',      label:'Lens / focal',    zone:'tl', desc:'35mm-equivalent focal length, and whether it is a digital crop.' },
+  { key:'ei',        label:'EI / ISO',        zone:'tl', desc:'Sensor sensitivity.' },
+  { key:'shutter',   label:'Shutter angle',   zone:'tl', desc:'How long each frame is exposed. 180° is the natural-motion default.' },
+  { key:'wb',        label:'White balance',   zone:'tr', desc:'Colour temperature in Kelvin.' },
+  { key:'iris',      label:'Iris',            zone:'tr', desc:'Aperture. Phone cameras almost never expose this to the browser.' },
+  { key:'fps',       label:'Frame rate',      zone:'tr', desc:'Frames captured per second.' },
+  { key:'focus',     label:'Focus distance',  zone:'tr', desc:'Where the lens is focused, when the device reports it.' },
+  { key:'battery',   label:'Battery / mins',  zone:'tr', desc:'Charge left, and the minutes the OS estimates remain.' },
+  { key:'lut',       label:'Look / LUT',      zone:'tl', desc:'Which look is on the viewfinder.' },
+  { key:'waveform',  label:'Waveform',        zone:'bl', desc:'Brightness across the frame. The ceiling is clipped white.' },
+  { key:'histogram', label:'Histogram',       zone:'bl', desc:'How many pixels sit at each brightness.' },
+  { key:'audio',     label:'Audio meters',    zone:'br', desc:'Input level. Keep peaks under the red.' },
+  { key:'recborder', label:'Record border',   zone:'-',  desc:'Red frame edge while recording — readable at arm’s length.' }
+];
+const HUD_PRESETS = {
+  minimal:  { label:'Minimal',  desc:'Just enough to not miss the shot.',
+              modules:['tc','lens','recborder'] },
+  standard: { label:'Standard', desc:'The everyday set — exposure, colour, level.',
+              modules:['tc','lens','ei','shutter','wb','fps','battery','audio','recborder'] },
+  fullpro:  { label:'Full Pro', desc:'FX6-style density. Every readout on at once.',
+              modules:HUD_MODULES.map(m=>m.key) }
+};
+
+/* 35mm-equivalent stops the lens picker offers. Anything the hardware
+   can't reach optically is produced by cropping, and labelled as such. */
+const FOCAL_STOPS = [16, 24, 28, 35, 50, 85, 135];
+const SHUTTER_ANGLES = [11.25, 22.5, 45, 90, 144, 172.8, 180, 270, 360];
+const FPS_OPTIONS = [24, 25, 30, 50, 60];
+const WB_PRESETS = [
+  { k:2800, label:'Tungsten' }, { k:3200, label:'Warm' }, { k:4300, label:'Fluoro' },
+  { k:5600, label:'Daylight' }, { k:6500, label:'Cloudy' }, { k:7500, label:'Shade' }
+];
+
+function defaultSettings(){
+  return {
+    hudPreset: 'standard',
+    hudModules: HUD_PRESETS.standard.modules.slice(),
+    learnMode: true,             // "why this matters" explainers under each control
+    // Physical cameras can't be asked for their true focal length, so the
+    // user calibrates them once. Defaults are typical recent-phone values.
+    lensBases: { ultrawide:13, wide:26, tele:77 },
+    focal: 26,
+    ei: null, shutterAngle: 180, wbKelvin: null, fps: 30,
+    autoExposure: true, autoWb: true, autoFocus: true,
+    lutId: null, lutStrength: 1,
+    zebra: false, zebraLevel: 94,
+    peaking: false, peakLevel: 0.16,
+    recordGraded: false,         // LUT is preview-only unless this is on
+    tcMode: 'freerun',           // 'freerun' | 'timeofday'
+    resolution: '1080',
+    scene: '', shotNum: '', roll: 'A001', takeNum: 1,
+    reportId: null,
+    projectId: null, projectName: '',
+    timelapse: {
+      mode: 'solveInterval',     // 'solveInterval' | 'solveDuration'
+      finalSeconds: 10, playbackFps: 24,
+      shootSeconds: 3600, interval: 5,
+      subject: 'clouds', resolution: '1080', codec: 'h264'
+    }
+  };
+}
+/* Runs on every load. Same job as CineSlab's normalizeProjectData: default
+   anything missing so a settings blob written by an older build still boots. */
+function normalizeSettings(s){
+  const d = defaultSettings();
+  if(!s || typeof s !== 'object') return d;
+  Object.keys(d).forEach(k=>{
+    if(s[k] === undefined || s[k] === null && d[k] !== null) s[k] = d[k];
+  });
+  s.lensBases = Object.assign({}, d.lensBases, s.lensBases || {});
+  s.timelapse = Object.assign({}, d.timelapse, s.timelapse || {});
+  if(!Array.isArray(s.hudModules)) s.hudModules = d.hudModules.slice();
+  s.hudModules = s.hudModules.filter(k=>HUD_MODULES.some(m=>m.key===k));
+  if(!HUD_PRESETS[s.hudPreset]) s.hudPreset = 'standard';
+  s.shutterAngle = clamp(Number(s.shutterAngle)||180, 5.625, 360);
+  s.lutStrength = clamp(Number(s.lutStrength), 0, 1);
+  s.zebraLevel = clamp(Number(s.zebraLevel)||94, 50, 109);
+  s.takeNum = Math.max(1, Number(s.takeNum)||1);
+  return s;
+}
+
+const state = {
+  booted: false,
+  view: 'shoot',
+  settings: defaultSettings(),
+  reports: [],
+  luts: [],
+  shots: { projects:[], lists:[], pulledAt:null, signedIn:false, email:'' },
+  cam: {
+    stream:null, track:null, video:null,
+    devices:[], deviceId:null, facing:'environment',
+    caps:{}, live:{}, error:null, starting:false,
+    zoom:1, digital:1
+  },
+  rec: { active:false, startedAt:0, recorder:null, chunks:[], mime:'', timer:null, elapsed:0 },
+  lapse: { active:false, shots:0, timer:null, startedAt:0, nextAt:0, frames:[] },
+  deckPanel: null,     // which control the deck has expanded
+  hudLive: {},         // values the HUD ticker reads
+  glReady: false
+};
+
+/* =========================================================
+   CAMERA CORE
+
+   Everything here is written to be honest about what a browser can
+   actually reach. getUserMedia gives resolution and frame rate on every
+   platform; ISO, exposure time, colour temperature, focus distance and
+   zoom are optional MediaTrackCapabilities that many devices — iOS
+   Safari especially — simply do not expose. Nothing is faked: a control
+   the hardware won't hand over renders locked, with a reason.
+
+   Aperture is not in the spec at all. There is no browser API for iris on
+   any platform, so it is always shown as a hardware-controlled readout.
+========================================================= */
+const CAP_NOTES = {
+  iso:              'This device doesn’t let the browser set ISO.',
+  exposureTime:     'This device doesn’t let the browser set exposure time, so shutter angle is a guide only.',
+  colorTemperature: 'This device doesn’t let the browser set white balance in Kelvin.',
+  focusDistance:    'This device doesn’t report focus distance.',
+  zoom:             'This device doesn’t expose zoom, so digital crop is done in the preview instead.',
+  frameRate:        'This device doesn’t let the browser pick a frame rate.'
+};
+
+function camSupports(name){
+  const c = state.cam.caps;
+  if(!c || !c[name]) return false;
+  const v = c[name];
+  if(Array.isArray(v)) return v.length > 0;
+  if(typeof v === 'object') return v.max > v.min;
+  return true;
+}
+function capRange(name){
+  const v = state.cam.caps && state.cam.caps[name];
+  return (v && typeof v === 'object' && 'min' in v) ? v : null;
+}
+
+/* Devices can only be told apart by label, and labels are blank until
+   permission is granted — so this is always called after the first
+   successful getUserMedia, never before. */
+function classifyLens(label){
+  const l = (label||'').toLowerCase();
+  if(/ultra|wide angle|0\.5/.test(l) && /ultra|0\.5/.test(l)) return 'ultrawide';
+  if(/tele|zoom|3x|2x/.test(l)) return 'tele';
+  return 'wide';
+}
+async function refreshDevices(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  try{
+    const all = await navigator.mediaDevices.enumerateDevices();
+    const cams = all.filter(d=>d.kind === 'videoinput');
+    state.cam.devices = cams.map(d=>({
+      deviceId: d.deviceId,
+      label: d.label || 'Camera',
+      role: classifyLens(d.label),
+      front: /front|user|face/i.test(d.label || '')
+    }));
+  }catch(e){ /* enumeration is best-effort; the app still works on one camera */ }
+}
+
+/* The base 35mm-equivalent focal length of each physical camera. There is
+   no API for this — a phone will not tell you it has a 26mm-equivalent
+   main lens — so it is user-calibrated in Settings and these are just
+   typical recent-phone values to start from. */
+function baseFocalFor(dev){
+  const b = state.settings.lensBases;
+  if(!dev) return b.wide;
+  return b[dev.role] !== undefined ? b[dev.role] : b.wide;
+}
+function backDevices(){
+  const d = state.cam.devices.filter(x=>!x.front);
+  return d.length ? d : state.cam.devices;
+}
+/* For a requested equivalent focal length, pick the physical camera whose
+   base is closest at or below it, then make up the rest with zoom. If the
+   only way there is cropping, say so — the user should know the difference
+   between an optical 50 and a 50 cut out of a 26. */
+function planFocal(mm){
+  const devs = backDevices();
+  if(!devs.length) return { deviceId:null, base:state.settings.lensBases.wide, zoom:mm/state.settings.lensBases.wide, digital:true };
+  let best = null;
+  devs.forEach(d=>{
+    const base = baseFocalFor(d);
+    const z = mm / base;
+    if(z < 0.999) return;                       // can't get wider than the lens is
+    if(!best || z < best.zoom) best = { deviceId:d.deviceId, base, zoom:z, dev:d };
+  });
+  if(!best){
+    // Asked for something wider than the widest camera — clamp to it.
+    let widest = devs[0], wb = baseFocalFor(devs[0]);
+    devs.forEach(d=>{ const b = baseFocalFor(d); if(b < wb){ wb = b; widest = d; } });
+    return { deviceId:widest.deviceId, base:wb, zoom:1, digital:false, clamped:true };
+  }
+  return { deviceId:best.deviceId, base:best.base, zoom:best.zoom, digital:best.zoom > 1.001 };
+}
+/* Optical zoom is applied on the track when the device exposes it; whatever
+   is left over is done by cropping the preview in the shader. Splitting it
+   this way keeps as much real resolution as the hardware will give. */
+function applyZoomSplit(zoom){
+  const r = capRange('zoom');
+  let optical = 1, digital = zoom;
+  if(r){
+    optical = clamp(zoom, r.min || 1, r.max || 1);
+    digital = zoom / optical;
+  }
+  state.cam.zoom = optical;
+  state.cam.digital = Math.max(1, digital);
+  if(r && state.cam.track){
+    applyCam({ zoom: optical }).catch(()=>{});
+  }
+}
+
+async function applyCam(obj){
+  const t = state.cam.track;
+  if(!t || !t.applyConstraints) return false;
+  try{
+    await t.applyConstraints({ advanced:[obj] });
+    readLive();
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+function readLive(){
+  const t = state.cam.track;
+  if(!t) return;
+  try{ state.cam.live = t.getSettings ? t.getSettings() : {}; }catch(e){ state.cam.live = {}; }
+}
+function readCaps(){
+  const t = state.cam.track;
+  if(!t) return;
+  try{ state.cam.caps = t.getCapabilities ? t.getCapabilities() : {}; }catch(e){ state.cam.caps = {}; }
+  readLive();
+}
+
+/* Shutter ANGLE is the cinema unit: the fraction of each frame interval the
+   sensor is exposed. 180° at 24fps is 1/48s. The browser wants an exposure
+   TIME, and per the Image Capture spec that value is in 100-microsecond
+   units — so seconds × 10000. Devices vary in how strictly they honour it,
+   which is why the applied value is read back and shown rather than assumed. */
+function angleToSeconds(angle, fps){
+  return (angle / 360) / (fps || 30);
+}
+function secondsToAngle(sec, fps){
+  return sec * (fps || 30) * 360;
+}
+function shutterLabel(angle, fps){
+  const sec = angleToSeconds(angle, fps);
+  const denom = Math.round(1/sec);
+  return angle.toFixed(angle % 1 ? 1 : 0) + '° · 1/' + denom;
+}
+async function applyShutter(){
+  const s = state.settings;
+  if(!camSupports('exposureTime')) return false;
+  const r = capRange('exposureTime');
+  const want = angleToSeconds(s.shutterAngle, s.fps) * 10000;
+  const val = r ? clamp(want, r.min, r.max) : want;
+  await applyCam({ exposureMode:'manual' });
+  return applyCam({ exposureTime: r && r.step ? Math.round(val / r.step) * r.step : val });
+}
+async function applyIso(){
+  const s = state.settings;
+  if(!camSupports('iso') || s.ei == null) return false;
+  const r = capRange('iso');
+  await applyCam({ exposureMode:'manual' });
+  return applyCam({ iso: r ? clamp(s.ei, r.min, r.max) : s.ei });
+}
+async function applyWb(){
+  const s = state.settings;
+  if(!camSupports('colorTemperature') || s.wbKelvin == null) return false;
+  const r = capRange('colorTemperature');
+  await applyCam({ whiteBalanceMode:'manual' });
+  return applyCam({ colorTemperature: r ? clamp(s.wbKelvin, r.min, r.max) : s.wbKelvin });
+}
+async function applyAutoModes(){
+  const s = state.settings;
+  if(s.autoExposure && (camSupports('exposureMode') || state.cam.caps.exposureMode)){
+    await applyCam({ exposureMode:'continuous' });
+  }
+  if(s.autoWb && state.cam.caps.whiteBalanceMode){
+    await applyCam({ whiteBalanceMode:'continuous' });
+  }
+  if(s.autoFocus && state.cam.caps.focusMode){
+    await applyCam({ focusMode:'continuous' });
+  }
+}
+/* Push every manual setting the device will accept, in the order that
+   matters: modes first, then values. */
+async function applyAllControls(){
+  const s = state.settings;
+  await applyAutoModes();
+  if(!s.autoExposure){ await applyShutter(); await applyIso(); }
+  if(!s.autoWb) await applyWb();
+  if(!s.autoFocus && camSupports('focusDistance')){
+    await applyCam({ focusMode:'manual', focusDistance: state.cam.live.focusDistance });
+  }
+  readLive();
+}
+
+const RES_PRESETS = {
+  '720':  { w:1280, h:720  },
+  '1080': { w:1920, h:1080 },
+  '4k':   { w:3840, h:2160 }
+};
+
+async function startCamera(deviceId){
+  if(state.cam.starting) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    state.cam.error = 'This browser has no camera API. Try Safari on iOS, or Chrome on Android or desktop.';
+    render(); return;
+  }
+  if(!window.isSecureContext){
+    state.cam.error = 'Cameras only work over HTTPS (or on localhost). Open this page on a secure address.';
+    render(); return;
+  }
+  state.cam.starting = true;
+  state.cam.error = null;
+  const res = RES_PRESETS[state.settings.resolution] || RES_PRESETS['1080'];
+  const video = {
+    width:  { ideal: res.w },
+    height: { ideal: res.h },
+    frameRate: { ideal: state.settings.fps }
+  };
+  if(deviceId) video.deviceId = { exact: deviceId };
+  else video.facingMode = { ideal: state.cam.facing };
+
+  try{
+    stopCamera(true);
+    const stream = await navigator.mediaDevices.getUserMedia({ video, audio:true });
+    state.cam.stream = stream;
+    state.cam.track = stream.getVideoTracks()[0] || null;
+    state.cam.deviceId = deviceId || (state.cam.live && state.cam.live.deviceId) || null;
+    readCaps();
+    if(!state.cam.deviceId && state.cam.live) state.cam.deviceId = state.cam.live.deviceId || null;
+    await refreshDevices();
+    const el = ensureVideoEl();
+    el.srcObject = stream;
+    await el.play().catch(()=>{});
+    startAudioMeter(stream);
+    await applyAllControls();
+    initGL();
+    state.cam.starting = false;
+    state.cam.error = null;
+    render();
+  }catch(e){
+    state.cam.starting = false;
+    state.cam.error = cameraErrorMessage(e);
+    render();
+  }
+}
+function cameraErrorMessage(e){
+  const n = e && e.name;
+  if(n === 'NotAllowedError')  return 'Camera access was blocked. Allow it in your browser’s site settings, then try again.';
+  if(n === 'NotFoundError')    return 'No camera found on this device.';
+  if(n === 'NotReadableError') return 'The camera is busy — another app or tab probably has it open.';
+  if(n === 'OverconstrainedError') return 'This camera can’t do the requested resolution or frame rate. Try a lower setting.';
+  return 'Could not start the camera' + (e && e.message ? ': ' + e.message : '.');
+}
+function stopCamera(keepError){
+  stopAudioMeter();
+  if(state.cam.stream){
+    state.cam.stream.getTracks().forEach(t=>{ try{ t.stop(); }catch(e){} });
+  }
+  state.cam.stream = null; state.cam.track = null;
+  state.cam.caps = {}; state.cam.live = {};
+  if(!keepError) state.cam.error = null;
+}
+function ensureVideoEl(){
+  if(state.cam.video) return state.cam.video;
+  const v = document.createElement('video');
+  v.playsInline = true; v.muted = true; v.autoplay = true;
+  v.setAttribute('playsinline',''); v.setAttribute('muted','');
+  state.cam.video = v;
+  return v;
+}
+async function switchFacing(){
+  state.cam.facing = state.cam.facing === 'environment' ? 'user' : 'environment';
+  await startCamera(null);
+}
+async function setFocal(mm){
+  const plan = planFocal(mm);
+  state.settings.focal = mm;
+  debouncedSaveSettings();
+  if(plan.deviceId && plan.deviceId !== state.cam.deviceId){
+    await startCamera(plan.deviceId);
+  }
+  applyZoomSplit(plan.zoom);
+  render();
+}
+/* What the lens picker shows: every stop, tagged with how it is reached. */
+function focalOptions(){
+  return FOCAL_STOPS.map(mm=>{
+    const p = planFocal(mm);
+    return { mm, digital: !!p.digital && !p.clamped, base: p.base, zoom: p.zoom, unreachable: !!p.clamped };
+  });
+}
+function currentFocalNote(){
+  const s = state.settings;
+  const p = planFocal(s.focal);
+  if(p.clamped) return 'Widest this device goes is ' + Math.round(p.base) + 'mm equivalent.';
+  if(p.digital) return 'Digital crop ' + p.zoom.toFixed(1) + '× from the ' + Math.round(p.base) + 'mm lens.';
+  return 'Optical, on the ' + Math.round(p.base) + 'mm lens.';
+}
+
+/* =========================================================
+   AUDIO METER — WebAudio off the same stream the recorder uses
+========================================================= */
+let audioCtx = null, analyser = null, audioData = null, audioSrc = null;
+function startAudioMeter(stream){
+  stopAudioMeter();
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx || !stream.getAudioTracks().length) return;
+    audioCtx = new Ctx();
+    audioSrc = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    audioData = new Float32Array(analyser.fftSize);
+    audioSrc.connect(analyser);
+  }catch(e){ analyser = null; }
+}
+function stopAudioMeter(){
+  try{ if(audioSrc) audioSrc.disconnect(); }catch(e){}
+  try{ if(audioCtx) audioCtx.close(); }catch(e){}
+  audioCtx = null; analyser = null; audioData = null; audioSrc = null;
+}
+/* Returns peak dBFS, or null when there is no audio to read. */
+function audioPeakDb(){
+  if(!analyser || !audioData) return null;
+  analyser.getFloatTimeDomainData(audioData);
+  let peak = 0;
+  for(let i=0;i<audioData.length;i++){
+    const a = Math.abs(audioData[i]);
+    if(a > peak) peak = a;
+  }
+  return peak > 0 ? 20 * Math.log10(peak) : -100;
+}
+
+/* =========================================================
+   BATTERY — minutes-remaining, FX6 style, where the OS offers it
+========================================================= */
+let batteryRef = null;
+function initBattery(){
+  if(!navigator.getBattery) return;
+  navigator.getBattery().then(b=>{
+    batteryRef = b;
+    ['levelchange','dischargingtimechange','chargingchange'].forEach(ev=>{
+      b.addEventListener(ev, ()=>{});
+    });
+  }).catch(()=>{});
+}
+function batteryReadout(){
+  if(!batteryRef) return { pct:null, mins:null, charging:false };
+  const pct = Math.round(batteryRef.level * 100);
+  let mins = null;
+  if(!batteryRef.charging && isFinite(batteryRef.dischargingTime) && batteryRef.dischargingTime > 0){
+    mins = Math.round(batteryRef.dischargingTime / 60);
+  }
+  return { pct, mins, charging: !!batteryRef.charging };
+}
+
+/* =========================================================
+   LUTs
+
+   A .cube file is a 3D lookup table: n³ RGB triples, red varying
+   fastest. WebGL1 has no 3D textures, so the cube is unrolled into a
+   2D texture n·n wide and n tall — one n×n tile per blue slice — and the
+   shader interpolates between the two nearest slices.
+
+   The LUT is a PREVIEW by default. It is applied to what you see, not to
+   what is written to disk, unless "bake the look in" is switched on —
+   the same distinction a real camera makes between a monitor LUT and a
+   baked-in look.
+========================================================= */
+function parseCube(text){
+  const lines = text.split(/\r?\n/);
+  let size = 0, domainMin = [0,0,0], domainMax = [1,1,1], title = '';
+  const data = [];
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i].trim();
+    if(!line || line[0] === '#') continue;
+    const up = line.toUpperCase();
+    if(up.startsWith('TITLE')){
+      const m = line.match(/"([^"]*)"/); if(m) title = m[1];
+      continue;
+    }
+    if(up.startsWith('LUT_3D_SIZE')){ size = parseInt(line.split(/\s+/)[1], 10); continue; }
+    if(up.startsWith('LUT_1D_SIZE')){
+      throw new Error('That is a 1D LUT. This app needs a 3D .cube LUT.');
+    }
+    if(up.startsWith('DOMAIN_MIN')){ domainMin = line.split(/\s+/).slice(1,4).map(Number); continue; }
+    if(up.startsWith('DOMAIN_MAX')){ domainMax = line.split(/\s+/).slice(1,4).map(Number); continue; }
+    if(/^[-+0-9.]/.test(line)){
+      const p = line.split(/\s+/);
+      if(p.length >= 3){ data.push(+p[0], +p[1], +p[2]); }
+    }
+  }
+  if(!size) throw new Error('No LUT_3D_SIZE line — this doesn’t look like a 3D .cube file.');
+  if(size < 2 || size > 64) throw new Error('LUT size ' + size + ' is outside the supported range (2–64).');
+  if(data.length !== size*size*size*3){
+    throw new Error('Expected ' + (size*size*size) + ' entries, found ' + Math.floor(data.length/3) + '.');
+  }
+  if(data.some(v=>!isFinite(v))) throw new Error('The LUT contains values that aren’t numbers.');
+  // Normalise a non-0..1 domain so the shader can assume 0..1 throughout.
+  const span = [domainMax[0]-domainMin[0], domainMax[1]-domainMin[1], domainMax[2]-domainMin[2]];
+  if(span.some(s=>s !== 1)){
+    for(let i=0;i<data.length;i+=3){
+      for(let c=0;c<3;c++){
+        data[i+c] = span[c] ? (data[i+c] - domainMin[c]) / span[c] : data[i+c];
+      }
+    }
+  }
+  return { size, data, title };
+}
+
+/* Packs cube data into the tiled RGBA byte texture the shader samples. */
+function lutToTexture(size, data){
+  const w = size*size, h = size;
+  const buf = new Uint8Array(w*h*4);
+  for(let b=0;b<size;b++){
+    for(let g=0;g<size;g++){
+      for(let r=0;r<size;r++){
+        const src = (r + g*size + b*size*size) * 3;
+        const dst = ((g * w) + (b*size + r)) * 4;
+        buf[dst  ] = clamp(Math.round(data[src  ]*255), 0, 255);
+        buf[dst+1] = clamp(Math.round(data[src+1]*255), 0, 255);
+        buf[dst+2] = clamp(Math.round(data[src+2]*255), 0, 255);
+        buf[dst+3] = 255;
+      }
+    }
+  }
+  return { buf, w, h };
+}
+
+/* Built-in looks, generated rather than shipped as files so the HTML stays
+   one readable page. They are original curves aimed at familiar aesthetics —
+   deliberately not derived from, or named after, any film or film stock.
+   See CAMERA-COMPANION.md §2.3 for why that distinction matters. */
+function buildLut(size, fn){
+  const data = new Array(size*size*size*3);
+  const n = size - 1;
+  for(let b=0;b<size;b++){
+    for(let g=0;g<size;g++){
+      for(let r=0;r<size;r++){
+        const out = fn(r/n, g/n, b/n);
+        const i = (r + g*size + b*size*size) * 3;
+        data[i  ] = clamp(out[0], 0, 1);
+        data[i+1] = clamp(out[1], 0, 1);
+        data[i+2] = clamp(out[2], 0, 1);
+      }
+    }
+  }
+  return data;
+}
+function lift(v, amt){ return v + amt*(1-v); }
+function sCurve(v, amt){
+  const x = clamp(v, 0, 1);
+  return clamp(x + amt * (x - 0.5) * (1 - Math.abs(2*x - 1)) * 2, 0, 1);
+}
+function lumaOf(r,g,b){ return 0.2126*r + 0.7152*g + 0.0722*b; }
+
+const BUILTIN_LUTS = [
+  { id:'cf-neutral', name:'CF Neutral+', desc:'A gentle contrast lift. The safest look to shoot under.',
+    fn:(r,g,b)=>[sCurve(r,.10), sCurve(g,.10), sCurve(b,.10)] },
+  { id:'cf-warm', name:'CF Warm Print', desc:'Warm highlights, softened blues — a classic print feel.',
+    fn:(r,g,b)=>[clamp(sCurve(r,.16)*1.04,0,1), sCurve(g,.14), clamp(sCurve(b,.12)*0.94,0,1)] },
+  { id:'cf-steel', name:'CF Night Steel', desc:'Cool shadows against warm skin. Reads well after dark.',
+    fn:(r,g,b)=>{
+      const l = lumaOf(r,g,b);
+      return [ clamp(sCurve(r,.14) + (l-0.5)*0.06, 0, 1),
+               sCurve(g,.12),
+               clamp(lift(sCurve(b,.12), 0.07) - (l-0.5)*0.05, 0, 1) ];
+    }},
+  { id:'cf-bleach', name:'CF Bleach', desc:'Desaturated and hard. Harsh on skin, on purpose.',
+    fn:(r,g,b)=>{
+      const l = sCurve(lumaOf(r,g,b), .30);
+      return [ clamp(l*0.62 + sCurve(r,.24)*0.38, 0, 1),
+               clamp(l*0.62 + sCurve(g,.24)*0.38, 0, 1),
+               clamp(l*0.62 + sCurve(b,.24)*0.38, 0, 1) ];
+    }},
+  { id:'cf-mono', name:'CF Monochrome', desc:'Panchromatic-style black and white with a lifted toe.',
+    fn:(r,g,b)=>{
+      const l = lift(sCurve(0.25*r + 0.62*g + 0.13*b, .22), 0.03);
+      return [l, l, l];
+    }}
+];
+function makeBuiltinLuts(){
+  const SIZE = 17;   // plenty for smooth curves, and only ~5k entries each
+  return BUILTIN_LUTS.map(b=>({
+    id: b.id, name: b.name, desc: b.desc, size: SIZE,
+    data: buildLut(SIZE, b.fn), builtin: true
+  }));
+}
+function currentLut(){
+  return state.luts.find(l=>l.id === state.settings.lutId) || null;
+}
+
+/* =========================================================
+   WEBGL PREVIEW PIPELINE
+   One fullscreen quad: video texture in, LUT + digital crop + zebras +
+   focus peaking out. All four are cheap on a GPU and would be unusable
+   done per-pixel on the CPU.
+========================================================= */
+const VERT_SRC = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main(){
+  vUv = aPos * 0.5 + 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+const FRAG_SRC = `
+precision mediump float;
+varying vec2 vUv;
+uniform sampler2D uVideo;
+uniform sampler2D uLut;
+uniform float uLutSize;
+uniform float uLutMix;
+uniform float uHasLut;
+uniform float uCrop;
+uniform float uMirror;
+uniform float uZebra;
+uniform float uZebraLevel;
+uniform float uPeak;
+uniform float uPeakLevel;
+uniform vec2  uTexel;
+
+float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+vec2 srcUv(vec2 uv){
+  vec2 c = (uv - 0.5) / uCrop + 0.5;
+  if(uMirror > 0.5) c.x = 1.0 - c.x;
+  return c;
+}
+vec3 applyLut(vec3 c){
+  float n = uLutSize;
+  c = clamp(c, 0.0, 1.0);
+  float slice = c.b * (n - 1.0);
+  float s0 = floor(slice);
+  float s1 = min(s0 + 1.0, n - 1.0);
+  float f  = slice - s0;
+  float xr = c.r * (n - 1.0) + 0.5;
+  float y  = (c.g * (n - 1.0) + 0.5) / n;
+  vec3 a = texture2D(uLut, vec2((s0 * n + xr) / (n * n), y)).rgb;
+  vec3 b = texture2D(uLut, vec2((s1 * n + xr) / (n * n), y)).rgb;
+  return mix(a, b, f);
+}
+void main(){
+  vec2 uv = srcUv(vUv);
+  // Outside the source after a crop should read as frame edge, not smear.
+  if(uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0){
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+  vec3 src = texture2D(uVideo, uv).rgb;
+  vec3 col = src;
+  if(uHasLut > 0.5) col = mix(src, applyLut(src), uLutMix);
+
+  // Focus peaking reads the UNGRADED image: a look with crushed contrast
+  // would otherwise hide exactly the edges you are trying to find.
+  if(uPeak > 0.5){
+    float l  = luma(src);
+    float lx = luma(texture2D(uVideo, uv + vec2(uTexel.x, 0.0)).rgb)
+             - luma(texture2D(uVideo, uv - vec2(uTexel.x, 0.0)).rgb);
+    float ly = luma(texture2D(uVideo, uv + vec2(0.0, uTexel.y)).rgb)
+             - luma(texture2D(uVideo, uv - vec2(0.0, uTexel.y)).rgb);
+    float edge = sqrt(lx*lx + ly*ly);
+    if(edge > uPeakLevel) col = mix(col, vec3(1.0, 0.15, 0.55), 0.85);
+  }
+  // Zebras also read the ungraded signal, for the same reason: they are an
+  // exposure tool, and a look must not be able to talk you out of a clip.
+  if(uZebra > 0.5){
+    float l = luma(src) * 100.0;
+    if(l >= uZebraLevel){
+      float stripe = mod(gl_FragCoord.x + gl_FragCoord.y, 12.0);
+      if(stripe < 6.0) col = vec3(0.0);
+    }
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+const GL = {
+  canvas:null, gl:null, prog:null, u:{}, videoTex:null, lutTex:null,
+  lutId:null, raf:0, failed:false
+};
+
+function compile(gl, type, src){
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+    const log = gl.getShaderInfoLog(sh);
+    gl.deleteShader(sh);
+    throw new Error('shader: ' + log);
+  }
+  return sh;
+}
+function initGL(){
+  if(GL.gl || GL.failed) { startGLLoop(); return; }
+  const canvas = document.createElement('canvas');
+  canvas.className = 'gl';
+  let gl = null;
+  try{
+    gl = canvas.getContext('webgl', { alpha:false, antialias:false, preserveDrawingBuffer:true })
+      || canvas.getContext('experimental-webgl', { alpha:false, antialias:false, preserveDrawingBuffer:true });
+  }catch(e){ gl = null; }
+  if(!gl){
+    // No WebGL: fall back to showing the raw video element. The app still
+    // shoots and still reports; the LUT and shader overlays go away and the
+    // Looks screen says why rather than silently doing nothing.
+    GL.failed = true;
+    state.glReady = false;
+    return;
+  }
+  try{
+    const prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT_SRC));
+    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG_SRC));
+    gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(prog, 'aPos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+    ['uVideo','uLut','uLutSize','uLutMix','uHasLut','uCrop','uMirror',
+     'uZebra','uZebraLevel','uPeak','uPeakLevel','uTexel'].forEach(n=>{
+      GL.u[n] = gl.getUniformLocation(prog, n);
+    });
+
+    GL.videoTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, GL.videoTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+    GL.lutTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, GL.lutTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    gl.uniform1i(GL.u.uVideo, 0);
+    gl.uniform1i(GL.u.uLut, 1);
+
+    GL.canvas = canvas; GL.gl = gl;
+    state.glReady = true;
+    startGLLoop();
+  }catch(e){
+    console.warn(APP_NAME + ': WebGL preview unavailable —', e.message);
+    GL.failed = true; GL.gl = null; state.glReady = false;
+  }
+}
+function uploadLut(){
+  const gl = GL.gl, lut = currentLut();
+  if(!gl) return;
+  if(!lut){ GL.lutId = null; return; }
+  if(GL.lutId === lut.id) return;
+  const tex = lutToTexture(lut.size, lut.data);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, GL.lutTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tex.w, tex.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, tex.buf);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  GL.lutId = lut.id;
+}
+function drawGL(){
+  const gl = GL.gl, v = state.cam.video;
+  if(!gl || !v || v.readyState < 2 || !v.videoWidth) return;
+  const w = v.videoWidth, h = v.videoHeight;
+  if(GL.canvas.width !== w || GL.canvas.height !== h){
+    GL.canvas.width = w; GL.canvas.height = h;
+    gl.viewport(0, 0, w, h);
+  }
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, GL.videoTex);
+  try{
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, v);
+  }catch(e){ return; }
+
+  uploadLut();
+  const s = state.settings, lut = currentLut();
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, GL.lutTex);
+
+  gl.uniform1f(GL.u.uHasLut, lut ? 1 : 0);
+  gl.uniform1f(GL.u.uLutSize, lut ? lut.size : 2);
+  gl.uniform1f(GL.u.uLutMix, s.lutStrength);
+  gl.uniform1f(GL.u.uCrop, state.cam.digital || 1);
+  gl.uniform1f(GL.u.uMirror, state.cam.facing === 'user' ? 1 : 0);
+  gl.uniform1f(GL.u.uZebra, s.zebra ? 1 : 0);
+  gl.uniform1f(GL.u.uZebraLevel, s.zebraLevel);
+  gl.uniform1f(GL.u.uPeak, s.peaking ? 1 : 0);
+  gl.uniform1f(GL.u.uPeakLevel, s.peakLevel);
+  gl.uniform2f(GL.u.uTexel, 1/w, 1/h);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+function startGLLoop(){
+  if(GL.raf) return;
+  const tick = ()=>{
+    GL.raf = requestAnimationFrame(tick);
+    if(state.view !== 'shoot' && !state.rec.active && !state.lapse.active) return;
+    drawGL();
+  };
+  GL.raf = requestAnimationFrame(tick);
+}
+
+/* =========================================================
+   SCOPES — waveform and histogram
+
+   Sampled from a small 2D canvas rather than the GPU: at 192×108 the read
+   back is cheap, and a scope only has to be right, not high-resolution.
+   Deliberately reads the UNGRADED source for the same reason zebras do.
+========================================================= */
+const SCOPE = { c:null, ctx:null, w:192, h:108, last:0 };
+function scopeSample(){
+  const v = state.cam.video;
+  if(!v || v.readyState < 2 || !v.videoWidth) return null;
+  if(!SCOPE.c){
+    SCOPE.c = document.createElement('canvas');
+    SCOPE.c.width = SCOPE.w; SCOPE.c.height = SCOPE.h;
+    SCOPE.ctx = SCOPE.c.getContext('2d', { willReadFrequently:true });
+  }
+  try{
+    SCOPE.ctx.drawImage(v, 0, 0, SCOPE.w, SCOPE.h);
+    return SCOPE.ctx.getImageData(0, 0, SCOPE.w, SCOPE.h);
+  }catch(e){ return null; }
+}
+function drawWaveform(canvas, img){
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#050a07'; ctx.fillRect(0, 0, W, H);
+  if(!img) return;
+  // Column-aligned luma plot: x is frame position, y is brightness.
+  const bins = new Uint16Array(W * H);
+  const d = img.data;
+  for(let y=0;y<img.height;y++){
+    for(let x=0;x<img.width;x++){
+      const i = (y*img.width + x) * 4;
+      const l = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
+      const px = Math.min(W-1, Math.floor(x / img.width * W));
+      const py = Math.min(H-1, Math.floor((1-l) * (H-1)));
+      bins[py*W + px] += 1;
+    }
+  }
+  const out = ctx.createImageData(W, H);
+  for(let i=0;i<bins.length;i++){
+    const a = Math.min(255, bins[i] * 26);
+    out.data[i*4  ] = 95;  out.data[i*4+1] = 192;
+    out.data[i*4+2] = 142; out.data[i*4+3] = a;
+  }
+  ctx.putImageData(out, 0, 0);
+  // 100 IRE ceiling and the 70 IRE skin-tone line.
+  ctx.strokeStyle = 'rgba(226,72,63,.8)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, 0.5); ctx.lineTo(W, 0.5); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.22)';
+  ctx.beginPath(); ctx.moveTo(0, H*0.3); ctx.lineTo(W, H*0.3); ctx.stroke();
+}
+function drawHistogram(canvas, img){
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#050a07'; ctx.fillRect(0, 0, W, H);
+  if(!img) return;
+  const BINS = 64, r = new Float32Array(BINS), g = new Float32Array(BINS), b = new Float32Array(BINS);
+  const d = img.data;
+  for(let i=0;i<d.length;i+=4){
+    r[Math.min(BINS-1, d[i]   * BINS >> 8)]++;
+    g[Math.min(BINS-1, d[i+1] * BINS >> 8)]++;
+    b[Math.min(BINS-1, d[i+2] * BINS >> 8)]++;
+  }
+  let max = 1;
+  for(let i=0;i<BINS;i++) max = Math.max(max, r[i], g[i], b[i]);
+  const bw = W / BINS;
+  [[r,'rgba(226,72,63,.75)'], [g,'rgba(95,192,142,.75)'], [b,'rgba(90,140,226,.75)']].forEach(([arr, col])=>{
+    ctx.fillStyle = col;
+    for(let i=0;i<BINS;i++){
+      const hgt = (arr[i]/max) * (H-2);
+      ctx.fillRect(i*bw, H-hgt, Math.max(1, bw-0.5), hgt);
+    }
+  });
+}
+
+/* =========================================================
+   TIMECODE
+   Free-run counts from the moment the app opened; time-of-day reads the
+   device clock. Both are stamped onto every take so post has something to
+   line up against — see CAMERA-COMPANION.md §6 on why a shared clock is
+   still an open question for multi-camera work.
+========================================================= */
+const TC_EPOCH = Date.now();
+function tcString(atMs){
+  const fps = state.settings.fps || 30;
+  let totalSec, frames;
+  if(state.settings.tcMode === 'timeofday'){
+    const d = atMs ? new Date(atMs) : new Date();
+    totalSec = d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds();
+    frames = Math.floor(d.getMilliseconds() / 1000 * fps);
+  } else {
+    const ms = (atMs || Date.now()) - TC_EPOCH;
+    totalSec = Math.floor(ms / 1000);
+    frames = Math.floor((ms % 1000) / 1000 * fps);
+  }
+  return pad2(Math.floor(totalSec/3600)) + ':' + pad2(Math.floor(totalSec%3600/60))
+       + ':' + pad2(totalSec%60) + ':' + pad2(frames);
+}
+
+/* =========================================================
+   RECORDING
+
+   Two capture paths, and the difference is the point:
+   · clean  — records the camera stream, look untouched. Post keeps the
+              full latitude and can grade properly.
+   · graded — records the WebGL canvas, so the look is baked in and cannot
+              be undone. Fast to hand off, permanent.
+========================================================= */
+const REC_MIMES = [
+  'video/mp4;codecs=avc1',
+  'video/webm;codecs=vp9,opus',
+  'video/webm;codecs=vp8,opus',
+  'video/webm',
+  'video/mp4'
+];
+function pickMime(){
+  if(typeof MediaRecorder === 'undefined') return null;
+  for(const m of REC_MIMES){
+    try{ if(MediaRecorder.isTypeSupported(m)) return m; }catch(e){}
+  }
+  return '';   // let the browser choose
+}
+function recordingSupported(){ return typeof MediaRecorder !== 'undefined'; }
+
+function buildRecordStream(){
+  const s = state.settings;
+  if(s.recordGraded && state.glReady && GL.canvas && GL.canvas.captureStream){
+    const out = GL.canvas.captureStream(s.fps || 30);
+    const audio = state.cam.stream && state.cam.stream.getAudioTracks()[0];
+    if(audio) out.addTrack(audio);
+    return out;
+  }
+  return state.cam.stream;
+}
+
+async function toggleRecord(){
+  if(state.rec.active) return stopRecord();
+  return startRecord();
+}
+async function startRecord(){
+  if(!state.cam.stream){ toast('Start the camera first.', true); return; }
+  if(!recordingSupported()){
+    await openAlertModal('Recording unavailable',
+      'This browser has no MediaRecorder, so it can’t save video. Everything else — the HUD, scopes, looks, reports and the time-lapse calculator — still works.');
+    return;
+  }
+  const stream = buildRecordStream();
+  if(!stream){ toast('No stream to record.', true); return; }
+  const mime = pickMime();
+  let rec;
+  try{
+    rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+  }catch(e){
+    try{ rec = new MediaRecorder(stream); }
+    catch(e2){ toast('Could not start recording: ' + e2.message, true); return; }
+  }
+  state.rec.chunks = [];
+  state.rec.mime = rec.mimeType || mime || 'video/webm';
+  rec.ondataavailable = e=>{ if(e.data && e.data.size) state.rec.chunks.push(e.data); };
+  rec.onstop = ()=>finishRecord();
+  rec.onerror = e=>{ toast('Recording error: ' + (e.error && e.error.name || 'unknown'), true); };
+  try{ rec.start(1000); }
+  catch(e){ toast('Could not start recording: ' + e.message, true); return; }
+
+  state.rec.recorder = rec;
+  state.rec.active = true;
+  state.rec.startedAt = Date.now();
+  state.rec.startTc = tcString();
+  state.rec.elapsed = 0;
+  state.rec.timer = setInterval(()=>{
+    state.rec.elapsed = (Date.now() - state.rec.startedAt) / 1000;
+  }, 200);
+  render();
+}
+function stopRecord(){
+  const r = state.rec.recorder;
+  if(!r) return;
+  clearInterval(state.rec.timer);
+  state.rec.timer = null;
+  try{ r.stop(); }catch(e){}
+  state.rec.active = false;
+  render();
+}
+async function finishRecord(){
+  const chunks = state.rec.chunks.slice();
+  state.rec.chunks = [];
+  state.rec.recorder = null;
+  const duration = (Date.now() - state.rec.startedAt) / 1000;
+  if(!chunks.length){ toast('Nothing was recorded.', true); return; }
+  const blob = new Blob(chunks, { type: state.rec.mime });
+  const take = logTake({ duration, startTc: state.rec.startTc, bytes: blob.size });
+  const ext = /mp4/.test(state.rec.mime) ? 'mp4' : 'webm';
+  const name = takeFilename(take) + '.' + ext;
+  downloadBlob(blob, name);
+  toast('Take ' + take.take + ' saved — ' + fmtDuration(duration) + ', ' + fmtBytes(blob.size));
+  render();
+}
+function takeFilename(t){
+  const bits = [t.roll, t.scene ? 'SC' + t.scene : null, t.shot ? 'SH' + t.shot : null, 'T' + t.take];
+  return bits.filter(Boolean).join('_').replace(/[^A-Za-z0-9_\-]/g, '');
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+}
+
+/* =========================================================
+   CAMERA REPORTS
+
+   Auto-filled from live state at the moment the take ends — which is the
+   whole point. A report nobody had to type is a report that is actually
+   accurate.
+
+   The take shape is a superset of CineSlab's own camera-report take
+   (scene / take / circle / tc / sound / notes) so the two can be lined up
+   later; the extra technical fields collapse into `notes` on export.
+========================================================= */
+function emptyReport(){
+  const d = new Date();
+  return {
+    id: uid(),
+    name: 'Report ' + d.toISOString().slice(0,10),
+    date: d.toISOString().slice(0,10),
+    camera: 'Camera A',
+    cardRoll: state.settings.roll || 'A001',
+    soundRoll: '',
+    unit: '',
+    notes: '',
+    projectId: state.settings.projectId || null,
+    projectName: state.settings.projectName || '',
+    createdAt: Date.now(),
+    takes: []
+  };
+}
+/* Same job as CineSlab's normalizeProjectData: runs on every load so a
+   report written by an older build still opens, and so no export can ever
+   print "NaN" for a field that simply wasn't stored back then. */
+function normalizeReports(list){
+  if(!Array.isArray(list)) return [];
+  return list.filter(r=>r && typeof r === 'object').map(r=>{
+    const d = emptyReport();
+    Object.keys(d).forEach(k=>{ if(r[k] === undefined) r[k] = d[k]; });
+    r.id = r.id || uid();
+    r.takes = (Array.isArray(r.takes) ? r.takes : []).map(t=>Object.assign({
+      id: uid(), scene:'', shot:'', take:1, roll:'A001', circle:false, sound:'Sync', notes:'',
+      at:0, duration:0, startTc:'00:00:00:00', bytes:0, flags:[],
+      focal:0, focalNote:'', digital:false, ei:null, eiAuto:true,
+      shutterAngle:180, shutterApplied:null, wb:null, wbAuto:true,
+      fps:0, resolution:'', focusDistance:null, lut:'None', lutBaked:false, lutStrength:null
+    }, t));
+    return r;
+  });
+}
+function activeReport(){
+  let r = state.reports.find(x=>x.id === state.settings.reportId);
+  if(!r){
+    r = emptyReport();
+    state.reports.unshift(r);
+    state.settings.reportId = r.id;
+    if(state.reports.length > MAX_REPORTS) state.reports.length = MAX_REPORTS;
+    saveReports(); debouncedSaveSettings();
+  }
+  return r;
+}
+/* Snapshot of everything the camera was actually doing. Where a value was
+   never under our control, it is recorded as reported by the device rather
+   than as requested — a report that lies is worse than no report. */
+function captureMetadata(){
+  const s = state.settings, live = state.cam.live || {}, plan = planFocal(s.focal);
+  const lut = currentLut();
+  return {
+    focal: s.focal,
+    focalNote: plan.clamped ? 'clamped to widest lens'
+             : plan.digital ? ('digital crop ' + plan.zoom.toFixed(2) + '× from ' + Math.round(plan.base) + 'mm')
+             : ('optical ' + Math.round(plan.base) + 'mm'),
+    digital: !!plan.digital && !plan.clamped,
+    ei: camSupports('iso') && !s.autoExposure ? (live.iso || s.ei) : (live.iso || null),
+    eiAuto: s.autoExposure || !camSupports('iso'),
+    shutterAngle: s.shutterAngle,
+    shutterApplied: live.exposureTime != null
+      ? secondsToAngle(live.exposureTime / 10000, live.frameRate || s.fps) : null,
+    wb: live.colorTemperature || (s.autoWb ? null : s.wbKelvin),
+    wbAuto: s.autoWb || !camSupports('colorTemperature'),
+    fps: live.frameRate || s.fps,
+    resolution: (live.width && live.height) ? (live.width + '×' + live.height) : s.resolution,
+    focusDistance: live.focusDistance != null ? live.focusDistance : null,
+    lut: lut ? lut.name : 'None',
+    lutBaked: !!(lut && s.recordGraded),
+    lutStrength: lut ? s.lutStrength : null
+  };
+}
+function logTake(extra){
+  const s = state.settings, r = activeReport();
+  const meta = captureMetadata();
+  const take = Object.assign({
+    id: uid(),
+    scene: s.scene || '',
+    shot: s.shotNum || '',
+    take: s.takeNum,
+    roll: s.roll || 'A001',
+    circle: false,
+    sound: 'Sync',
+    notes: '',
+    at: Date.now(),
+    duration: 0,
+    startTc: tcString(),
+    bytes: 0,
+    flags: []
+  }, meta, extra || {});
+  take.flags = continuityFlags(take, r.takes);
+  r.takes.unshift(take);
+  s.takeNum = s.takeNum + 1;
+  saveReports(); debouncedSaveSettings();
+  if(take.flags.length) toast(take.flags[0], true);
+  return take;
+}
+/* Continuity check against the previous take in the same scene. Drifting
+   focal length or white balance mid-scene is the classic indie mistake —
+   it shows up in the edit, long after the location has gone. */
+function continuityFlags(take, prevTakes){
+  const prev = prevTakes.find(t=>t.scene === take.scene && t.scene !== '');
+  if(!prev) return [];
+  const out = [];
+  if(prev.focal !== take.focal){
+    out.push('Focal length changed within scene ' + take.scene + ': ' + prev.focal + 'mm → ' + take.focal + 'mm.');
+  }
+  if(prev.wb && take.wb && Math.abs(prev.wb - take.wb) >= 300){
+    out.push('White balance drifted ' + Math.abs(Math.round(take.wb - prev.wb)) + 'K within scene ' + take.scene + '.');
+  }
+  if(prev.wbAuto !== take.wbAuto){
+    out.push('White balance switched between auto and manual within scene ' + take.scene + '.');
+  }
+  if(prev.lut !== take.lut){
+    out.push('Look changed within scene ' + take.scene + ': ' + prev.lut + ' → ' + take.lut + '.');
+  }
+  return out;
+}
+function takeNoteLine(t){
+  const bits = [
+    t.focal + 'mm' + (t.digital ? ' (digital)' : ''),
+    t.ei ? 'EI ' + t.ei + (t.eiAuto ? ' auto' : '') : 'EI auto',
+    t.shutterAngle + '°',
+    t.wb ? t.wb + 'K' + (t.wbAuto ? ' auto' : '') : 'WB auto',
+    t.fps + 'fps',
+    t.resolution,
+    'Look: ' + t.lut + (t.lutBaked ? ' (baked in)' : ' (preview only)')
+  ];
+  return bits.join(' · ');
+}
+function reportToCsv(r){
+  const head = ['Scene','Shot','Take','Roll','Circle','Start TC','Duration','Focal (mm)','Focal source',
+                'EI','Shutter angle','WB (K)','FPS','Resolution','Look','Look baked in','Size','Sound','Flags','Notes'];
+  const rows = r.takes.slice().reverse().map(t=>[
+    t.scene, t.shot, t.take, t.roll, t.circle ? 'CIRCLE' : '', t.startTc, fmtDuration(t.duration),
+    t.focal, t.focalNote, t.eiAuto ? (t.ei ? t.ei + ' (auto)' : 'auto') : t.ei,
+    t.shutterAngle + '°', t.wbAuto ? (t.wb ? t.wb + ' (auto)' : 'auto') : t.wb,
+    t.fps, t.resolution, t.lut, t.lutBaked ? 'yes' : 'no',
+    t.bytes ? fmtBytes(t.bytes) : '', t.sound, (t.flags||[]).join(' | '), t.notes
+  ]);
+  const meta = [
+    ['CineSlab Camera Report'], ['Report', r.name], ['Date', r.date], ['Camera', r.camera],
+    ['Card / Roll', r.cardRoll], ['Sound roll', r.soundRoll], ['Project', r.projectName || ''],
+    ['Notes', r.notes], []
+  ];
+  const q = v=>{
+    const s = (v == null ? '' : String(v));
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+  return meta.concat([head], rows).map(row=>row.map(q).join(',')).join('\r\n');
+}
+function exportReportCsv(r){
+  const blob = new Blob([reportToCsv(r)], { type:'text/csv;charset=utf-8' });
+  downloadBlob(blob, (r.name || 'camera-report').replace(/[^A-Za-z0-9_\- ]/g,'').trim().replace(/\s+/g,'_') + '.csv');
+  toast('Report exported.');
+}
+
+/* =========================================================
+   TIME-LAPSE
+
+   The calculator is the piece that needs no camera API at all — it is
+   pure arithmetic, and it is useful before you leave the house. It solves
+   whichever side of the relationship you are missing:
+
+     frames  = final clip length × playback frame rate
+     shoot duration = frames × interval
+
+   Give it a target clip length and how long you'll be there, and it
+   returns the interval. Give it an interval and how long you'll be there,
+   and it returns the clip length you'll end up with.
+========================================================= */
+const LAPSE_SUBJECTS = {
+  clouds:    { label:'Clouds / weather',      min:1,   max:10,   typical:3,
+               note:'Fast-moving cloud wants a short interval or the sky stutters.' },
+  sunset:    { label:'Sunrise / sunset',      min:2,   max:10,   typical:5,
+               note:'The light changes faster than it looks. Start before you think you need to.' },
+  stars:     { label:'Stars / star trails',   min:15,  max:45,   typical:25,
+               note:'Each frame is a long exposure, so the interval can’t be shorter than the shutter.' },
+  build:     { label:'Construction / build',  min:120, max:3600, typical:600,
+               note:'Hours of work compress to seconds. Minutes between frames, not seconds.' },
+  plants:    { label:'Plants / growth',       min:300, max:3600, typical:900,
+               note:'Days of subject, so mains power and a locked-off tripod matter more than interval.' },
+  street:    { label:'People / street',       min:0.5, max:3,    typical:1,
+               note:'People move fast and unpredictably. Short intervals keep motion readable.' },
+  traffic:   { label:'Traffic / city night',  min:0.5, max:4,    typical:2,
+               note:'Light trails come from a long shutter, not a long interval.' }
+};
+const LAPSE_RES = {
+  '720':  { w:1280, h:720,  label:'720p'  },
+  '1080': { w:1920, h:1080, label:'1080p' },
+  '4k':   { w:3840, h:2160, label:'4K'    }
+};
+/* Bits per pixel for a stored still, and megabits per second for an
+   assembled clip. Both are deliberately mid-range estimates — real files
+   move with scene detail — and the UI says so rather than pretending
+   these are exact. */
+const LAPSE_CODECS = {
+  jpeg: { label:'JPEG stills', bpp:1.1,  video:false },
+  heif: { label:'HEIF stills', bpp:0.55, video:false },
+  h264: { label:'H.264 clip',  mbps:{ '720':8, '1080':16, '4k':50 }, video:true }
+};
+const MAX_LAPSE_FRAMES = 900;   // ~37s of 24fps output; past this a phone struggles
+
+function lapsePlan(tl){
+  tl = tl || state.settings.timelapse;
+  const fps = Math.max(1, Number(tl.playbackFps) || 24);
+  const res = LAPSE_RES[tl.resolution] || LAPSE_RES['1080'];
+  const codec = LAPSE_CODECS[tl.codec] || LAPSE_CODECS.jpeg;
+  let finalSeconds, shootSeconds, interval, frames;
+
+  if(tl.mode === 'solveDuration'){
+    // Known: how often you shoot, and how long you'll be there.
+    interval = Math.max(0.1, Number(tl.interval) || 1);
+    shootSeconds = Math.max(1, Number(tl.shootSeconds) || 1);
+    frames = Math.max(1, Math.floor(shootSeconds / interval));
+    finalSeconds = frames / fps;
+  } else {
+    // Known: how long the finished clip should be, and how long you'll be there.
+    finalSeconds = Math.max(0.1, Number(tl.finalSeconds) || 1);
+    shootSeconds = Math.max(1, Number(tl.shootSeconds) || 1);
+    frames = Math.max(1, Math.round(finalSeconds * fps));
+    interval = shootSeconds / frames;
+  }
+
+  const pixels = res.w * res.h;
+  const stillBytes = codec.video ? 0 : (pixels * codec.bpp) / 8;
+  const storageBytes = codec.video
+    ? (codec.mbps[tl.resolution] || 16) * 1e6 / 8 * finalSeconds
+    : stillBytes * frames;
+
+  // Battery: a phone held awake with the camera warm is the dominant cost,
+  // not the shutter. Short intervals never let the sensor idle, so they
+  // cost a little more. This is a planning estimate, not a measurement.
+  const perHour = interval < 2 ? 26 : interval < 15 ? 21 : 17;
+  const batteryPct = (shootSeconds / 3600) * perHour;
+
+  return {
+    fps, res, codec, interval, frames, finalSeconds, shootSeconds,
+    storageBytes, batteryPct, perHour,
+    shotsPerMinute: 60 / interval
+  };
+}
+
+/* Warnings are the teaching half of the tool: the number is easy, knowing
+   it's wrong for what you're pointing at is the hard part. */
+function lapseWarnings(plan, tl){
+  tl = tl || state.settings.timelapse;
+  const subj = LAPSE_SUBJECTS[tl.subject];
+  const out = [];
+  if(subj){
+    if(plan.interval < subj.min){
+      out.push({ level:'warn', text:'A ' + fmtInterval(plan.interval) + ' interval is very fast for ' +
+        subj.label.toLowerCase() + '. Around ' + fmtInterval(subj.typical) + ' is usual — you’ll shoot ' +
+        Math.round(subj.typical / plan.interval) + '× more frames than you need.' });
+    } else if(plan.interval > subj.max){
+      out.push({ level:'warn', text:'A ' + fmtInterval(plan.interval) + ' interval is slow for ' +
+        subj.label.toLowerCase() + '. Past about ' + fmtInterval(subj.max) +
+        ' the motion starts to jump between frames instead of flowing.' });
+    }
+  }
+  if(plan.frames > MAX_LAPSE_FRAMES){
+    out.push({ level:'warn', text:'That’s ' + plan.frames.toLocaleString() + ' frames. Shooting it in this app caps at ' +
+      MAX_LAPSE_FRAMES + ' — the calculator still works for planning a shoot on a real camera.' });
+  }
+  if(plan.interval < 0.5){
+    out.push({ level:'warn', text:'Under half a second per frame, a phone may not keep up. Treat the interval as a target, not a guarantee.' });
+  }
+  if(plan.batteryPct > 90){
+    out.push({ level:'warn', text:'This needs roughly ' + Math.round(plan.batteryPct) +
+      '% of a full battery — more than one charge. Plan on mains power or a battery pack.' });
+  } else if(plan.batteryPct > 55){
+    out.push({ level:'note', text:'Around ' + Math.round(plan.batteryPct) + '% of a battery. Start full.' });
+  }
+  if(plan.storageBytes > 8e9){
+    out.push({ level:'warn', text:'About ' + fmtBytes(plan.storageBytes) + ' of storage. Check you have the room before you start.' });
+  }
+  if(tl.subject === 'stars' && plan.interval < 15){
+    out.push({ level:'note', text:'Star work needs a long shutter per frame. The interval can never be shorter than the exposure itself.' });
+  }
+  return out;
+}
+
+/* ---- Live interval shooting ------------------------------------------
+   Frames are grabbed to JPEG blobs in memory, then replayed at the target
+   frame rate into a canvas and recorded — which is how a browser can
+   produce a real clip without an encoder. Assembly therefore takes as long
+   as the finished clip: a 10-second time-lapse takes 10 seconds to build.
+---------------------------------------------------------------------- */
+let wakeLock = null;
+async function requestWakeLock(){
+  try{
+    if(navigator.wakeLock && navigator.wakeLock.request){
+      wakeLock = await navigator.wakeLock.request('screen');
+    }
+  }catch(e){ wakeLock = null; }
+}
+function releaseWakeLock(){
+  try{ if(wakeLock) wakeLock.release(); }catch(e){}
+  wakeLock = null;
+}
+
+function grabFrameCanvas(){
+  const v = state.cam.video;
+  const tl = state.settings.timelapse;
+  const res = LAPSE_RES[tl.resolution] || LAPSE_RES['1080'];
+  const src = (state.glReady && GL.canvas && GL.canvas.width) ? GL.canvas : v;
+  if(!src) return null;
+  const sw = src.videoWidth || src.width, sh = src.videoHeight || src.height;
+  if(!sw || !sh) return null;
+  // Keep the source aspect; the resolution preset sets the long edge.
+  const scale = Math.min(res.w / sw, res.h / sh);
+  const w = Math.max(2, Math.round(sw * scale)), h = Math.max(2, Math.round(sh * scale));
+  if(!grabFrameCanvas.c){ grabFrameCanvas.c = document.createElement('canvas'); }
+  const c = grabFrameCanvas.c;
+  if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+  const ctx = c.getContext('2d');
+  try{ ctx.drawImage(src, 0, 0, w, h); }catch(e){ return null; }
+  return c;
+}
+async function captureLapseFrame(){
+  const c = grabFrameCanvas();
+  if(!c) return;
+  const blob = await new Promise(res=>{
+    if(c.toBlob) c.toBlob(res, 'image/jpeg', 0.85);
+    else res(null);
+  });
+  if(!blob) return;
+  state.lapse.frames.push(blob);
+  state.lapse.shots = state.lapse.frames.length;
+  if(state.lapse.frames.length >= MAX_LAPSE_FRAMES){
+    stopLapse();
+    toast('Hit the ' + MAX_LAPSE_FRAMES + '-frame cap — shooting stopped.', true);
+  }
+}
+async function startLapse(){
+  if(state.lapse.active) return;
+  if(!state.cam.stream){ toast('Start the camera first.', true); return; }
+  const plan = lapsePlan();
+  state.lapse.active = true;
+  state.lapse.frames = [];
+  state.lapse.shots = 0;
+  state.lapse.startedAt = Date.now();
+  state.lapse.plan = plan;
+  state.lapse.endAt = Date.now() + plan.shootSeconds * 1000;
+  await requestWakeLock();
+  captureLapseFrame();
+  state.lapse.timer = setInterval(()=>{
+    if(Date.now() >= state.lapse.endAt){ stopLapse(); toast('Time-lapse finished — ' + state.lapse.shots + ' frames.'); return; }
+    captureLapseFrame();
+  }, Math.max(100, plan.interval * 1000));
+  render();
+}
+function stopLapse(){
+  if(state.lapse.timer) clearInterval(state.lapse.timer);
+  state.lapse.timer = null;
+  state.lapse.active = false;
+  releaseWakeLock();
+  render();
+}
+function discardLapse(){
+  state.lapse.frames = [];
+  state.lapse.shots = 0;
+  render();
+}
+/* Replay the stored frames at the playback rate and record the result. */
+async function assembleLapse(){
+  const frames = state.lapse.frames;
+  if(!frames.length){ toast('No frames to assemble.', true); return; }
+  if(!recordingSupported()){
+    await openAlertModal('Can’t assemble here',
+      'This browser has no MediaRecorder, so it can’t write the clip. The frames are still in memory — switch to a browser that supports recording, or shoot the sequence on a camera that writes files directly.');
+    return;
+  }
+  const tl = state.settings.timelapse;
+  const fps = Math.max(1, Number(tl.playbackFps) || 24);
+  toast('Assembling ' + frames.length + ' frames — this takes about ' + fmtDuration(frames.length / fps) + '.');
+
+  let bitmaps;
+  try{
+    bitmaps = await Promise.all(frames.map(b=>createImageBitmap(b)));
+  }catch(e){
+    toast('Could not read the captured frames: ' + e.message, true);
+    return;
+  }
+  const c = document.createElement('canvas');
+  c.width = bitmaps[0].width; c.height = bitmaps[0].height;
+  const ctx = c.getContext('2d');
+  const stream = c.captureStream(fps);
+  const mime = pickMime();
+  let rec;
+  try{ rec = mime ? new MediaRecorder(stream, { mimeType:mime }) : new MediaRecorder(stream); }
+  catch(e){ toast('Could not assemble: ' + e.message, true); return; }
+
+  const chunks = [];
+  rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+  const done = new Promise(res=>{ rec.onstop = res; });
+  rec.start();
+
+  await new Promise(res=>{
+    let i = 0;
+    const step = ()=>{
+      if(i >= bitmaps.length) return res();
+      ctx.drawImage(bitmaps[i], 0, 0);
+      i++;
+      setTimeout(step, 1000 / fps);
+    };
+    step();
+  });
+  await sleep(1000 / fps + 120);   // let the last frame land in the stream
+  rec.stop();
+  await done;
+  bitmaps.forEach(b=>{ try{ b.close(); }catch(e){} });
+
+  const blob = new Blob(chunks, { type: rec.mimeType || 'video/webm' });
+  const ext = /mp4/.test(blob.type) ? 'mp4' : 'webm';
+  downloadBlob(blob, 'timelapse_' + frames.length + 'f_' + fps + 'fps.' + ext);
+  toast('Time-lapse saved — ' + fmtBytes(blob.size) + '.');
+}
+
+/* =========================================================
+   CINESLAB SYNC — read-only, Phase 1
+
+   Same Supabase project as CineSlab, same tables: `projects` and
+   `project_sections` (one row per tool, keyed by section_key). This app
+   only ever READS. Writing camera reports back into CineSlab is Phase 3
+   in CAMERA-COMPANION.md, and doing it early would mean two apps racing
+   to own the same row.
+
+   The publishable key is safe client-side — row-level security is what
+   enforces access. Never put a service_role key here.
+========================================================= */
+const SUPABASE_CONFIG = {
+  url: 'https://mmeptjvwxemlvxvjkbut.supabase.co',
+  publishableKey: 'sb_publishable_DATBN5tXk9MHvBscMosIaQ_pLeKNR80'
+};
+const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+
+let _sbClient = null, _sbLoading = null;
+function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload = resolve;
+    s.onerror = ()=>reject(new Error('Could not load ' + src));
+    document.head.appendChild(s);
+  });
+}
+/* Loaded on demand, never at boot: the app has to work with no network. */
+async function ensureSupabase(){
+  if(typeof window.supabase !== 'undefined') return true;
+  if(!_sbLoading){
+    _sbLoading = loadScript(SUPABASE_CDN).then(()=>true).catch(()=>false);
+  }
+  return _sbLoading;
+}
+function sbClient(){
+  if(typeof window.supabase === 'undefined') return null;
+  if(!_sbClient){
+    _sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey);
+  }
+  return _sbClient;
+}
+async function sbSignIn(email, password){
+  if(!(await ensureSupabase())) return { ok:false, message:'Could not reach the sign-in service. Check your connection.' };
+  const sb = sbClient();
+  if(!sb) return { ok:false, message:'Sign-in is unavailable right now.' };
+  try{
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) return { ok:false, message:error.message };
+    state.shots.signedIn = true;
+    state.shots.email = (data.user && data.user.email) || email;
+    return { ok:true };
+  }catch(e){ return { ok:false, message:e.message }; }
+}
+async function sbSignOut(){
+  const sb = sbClient();
+  if(sb){ try{ await sb.auth.signOut(); }catch(e){} }
+  state.shots.signedIn = false;
+  state.shots.email = '';
+  state.shots.projects = [];
+  render();
+}
+async function sbRestoreSession(){
+  if(typeof window.supabase === 'undefined') return;
+  const sb = sbClient();
+  if(!sb) return;
+  try{
+    const { data } = await sb.auth.getSession();
+    if(data && data.session && data.session.user){
+      state.shots.signedIn = true;
+      state.shots.email = data.session.user.email || '';
+    }
+  }catch(e){}
+}
+async function fetchProjects(){
+  const sb = sbClient();
+  if(!sb) return { ok:false, message:'Not connected.' };
+  try{
+    const { data, error } = await sb.from('projects')
+      .select('id, name, created_at').is('deleted_at', null)
+      .order('created_at', { ascending:false });
+    if(error) return { ok:false, message:error.message };
+    state.shots.projects = data || [];
+    return { ok:true };
+  }catch(e){ return { ok:false, message:e.message }; }
+}
+/* Pull just the shotlists row. One section, read-only, cached locally so
+   the list is still there when the signal isn't — which on location it
+   usually isn't. */
+async function pullShotlists(projectId){
+  const sb = sbClient();
+  if(!sb) return { ok:false, message:'Not connected.' };
+  try{
+    const { data, error } = await sb.from('project_sections')
+      .select('data, updated_at')
+      .eq('project_id', projectId).eq('section_key', 'shotlists').maybeSingle();
+    if(error) return { ok:false, message:error.message };
+    if(!data) return { ok:false, message:'That project has no shot lists yet.' };
+    const lists = Array.isArray(data.data) ? data.data : [];
+    state.shots.lists = lists;
+    state.shots.pulledAt = Date.now();
+    const proj = state.shots.projects.find(p=>p.id === projectId);
+    state.settings.projectId = projectId;
+    state.settings.projectName = proj ? proj.name : '';
+    await storeSet(KEY_SHOTS, {
+      lists, pulledAt: state.shots.pulledAt,
+      projectId, projectName: state.settings.projectName
+    }, false);
+    debouncedSaveSettings();
+    return { ok:true, count: lists.reduce((n,l)=>n + (l.shots ? l.shots.length : 0), 0) };
+  }catch(e){ return { ok:false, message:e.message }; }
+}
+
+/* Suggested 35mm-equivalent focal length per shot type. These are starting
+   points, not rules — the reason each one is what it is matters more than
+   the number, so the reason travels with it. */
+const SHOT_FOCAL = {
+  'ESTABLISHING':     { mm:24,  why:'Wide enough to show where you are and how the space connects.' },
+  'WIDE':             { mm:28,  why:'Holds the whole action without bending the room.' },
+  'MEDIUM':           { mm:35,  why:'Close to how the eye reads a person at conversational distance.' },
+  'CLOSE-UP':         { mm:85,  why:'Long enough to flatter a face and throw the background off.' },
+  'EXTREME CLOSE-UP': { mm:85,  why:'Compression keeps the detail clean instead of distorted.' },
+  'OTS':              { mm:50,  why:'Keeps the foreground shoulder in proportion to the far face.' },
+  'TWO-SHOT':         { mm:35,  why:'Fits two people without pushing them apart.' },
+  'INSERT':           { mm:50,  why:'Natural perspective on an object, no wide-angle stretch.' },
+  'POV':              { mm:28,  why:'Roughly matches human peripheral framing.' },
+  'CUTAWAY':          { mm:50,  why:'Neutral, so it cuts against anything.' }
+};
+/* If the shot list already names a lens, that beats any default we'd pick. */
+function focalForShot(shot){
+  const typed = (shot.lens || '').match(/(\d+(?:\.\d+)?)\s*mm/i);
+  if(typed){
+    return { mm: Math.round(parseFloat(typed[1])), why:'From the shot list — this was planned in CineSlab.', fromList:true };
+  }
+  const t = SHOT_FOCAL[(shot.type||'').toUpperCase()];
+  return t ? Object.assign({}, t) : { mm:35, why:'A neutral default — no shot type was set.' };
+}
+function nearestStop(mm){
+  return FOCAL_STOPS.reduce((a,b)=>Math.abs(b-mm) < Math.abs(a-mm) ? b : a, FOCAL_STOPS[0]);
+}
+/* Load a planned shot into the camera: sets scene, shot number and focal
+   length so the take that comes out carries the right slate. */
+async function loadShot(shot){
+  const f = focalForShot(shot);
+  state.settings.scene = shot.scene || '';
+  state.settings.shotNum = shot.shotNum || '';
+  state.settings.takeNum = 1;
+  await setFocal(nearestStop(f.mm));
+  state.view = 'shoot';
+  render();
+  toast('Loaded ' + (shot.scene ? 'Sc ' + shot.scene + ' ' : '') + (shot.shotNum || shot.type || '') + ' at ' + nearestStop(f.mm) + 'mm.');
+}
+
+/* =========================================================
+   TEACHING LAYER (Phase 1 slice)
+
+   The full fundamentals section — diagrammed 180-degree rule, composition
+   before/afters, live depth-of-field — is Phase 2 in the product doc.
+   What ships here is the part that pays for itself immediately: a plain
+   explanation attached to every control you can actually touch, plus a
+   glossary. It's switchable off once you're past needing it.
+========================================================= */
+const EXPLAIN = {
+  focal: 'Focal length decides how much of the world fits in frame and how near things feel to each other. Short (24mm) exaggerates depth and space; long (85mm) compresses it and separates a face from its background. Same subject size, completely different feeling.',
+  ei: 'ISO / EI is how hard the sensor’s signal is amplified. Higher lets you shoot in less light, and pays for it in noise. Move it last — light, aperture and shutter first.',
+  shutter: 'Shutter angle is how much of each frame’s time the sensor is actually exposed. 180° is the standard because it gives the amount of motion blur cinema has trained us to read as natural. Narrower (45°) makes movement crisp and jittery. Wider (360°) smears it dreamily.',
+  wb: 'White balance tells the camera what colour the light is, so white comes out white. Low Kelvin numbers are warm indoor light; high numbers are cool daylight and shade. Set it once per lighting setup and leave it — drifting mid-scene is a continuity problem.',
+  fps: 'Frame rate is how many frames a second you capture. Match your project’s rate. Capturing higher than you play back is how slow motion is made.',
+  lut: 'A LUT is a colour lookup table — a look. Here it sits on the viewfinder so you can judge the image the way it will finally be seen, without touching the recording. Bake it in only when you are sure, because it cannot be taken back out.',
+  zebra: 'Zebras stripe the parts of the image that are at or over your brightness threshold. It’s the fastest read there is on whether you are about to lose the highlights.',
+  peaking: 'Focus peaking outlines the edges that are sharply in focus. On a small phone screen it’s far more reliable than trusting your eyes.',
+  waveform: 'A waveform plots brightness across the frame — left to right matches the image, bottom to top is dark to bright. The line at the top is clipping: anything touching it has lost detail for good.',
+  histogram: 'A histogram counts how many pixels sit at each brightness. Piled against the right edge means blown highlights; against the left, crushed shadows.',
+  timelapse: 'Interval shooting takes one frame every so often and plays them back at normal speed, so hours become seconds. The interval is what sets the pace of the finished clip.',
+  digital: 'A digital crop cuts into the middle of the sensor and enlarges it. It frames like a longer lens, but it does NOT compress depth the way a real long lens does, and it throws away resolution. That’s why it’s labelled.'
+};
+const GLOSSARY = [
+  ['Shutter angle', 'How long each frame is exposed, given as a fraction of the frame interval. 180° at 24fps is 1/48 of a second.'],
+  ['EI vs ISO', 'ISO is the sensor’s rated sensitivity. EI (Exposure Index) is the rating you choose to shoot at, which may differ deliberately.'],
+  ['ND filter', 'A neutral grey filter that cuts light without changing colour. It’s how you keep a 180° shutter wide open in daylight.'],
+  ['Colour temperature', 'The colour of a light source in Kelvin. Candlelight ≈1800K, tungsten ≈3200K, midday sun ≈5600K, open shade ≈7500K.'],
+  ['Depth of field', 'How much of the scene is acceptably sharp. Wider aperture, longer lens and closer subject each make it shallower.'],
+  ['Exposure triangle', 'Aperture, shutter and ISO. Change one and you must change another to hold the same exposure.'],
+  ['Clipping', 'Detail lost because the signal hit the top or bottom of what the sensor can record. It cannot be recovered in post.'],
+  ['180-degree rule', 'Keep the camera on one side of an imaginary line through your subjects, so screen direction stays consistent between cuts. (Full lesson lands in Phase 2.)'],
+  ['Timecode', 'A running clock stamped on the footage so picture and sound can be lined up in the edit.'],
+  ['LUT', 'Lookup table — a colour transform. Used as a viewing look on set, or as a starting point for the grade.'],
+  ['Interval shooting', 'Taking frames at a fixed spacing rather than continuously, to compress a long event into a short clip.']
+];
+function explain(key){
+  if(!state.settings.learnMode) return '';
+  const t = EXPLAIN[key];
+  return t ? `<div class="explain">${esc(t)}</div>` : '';
+}
+
+/* =========================================================
+   RENDER SHELL
+
+   Same hand-rolled loop as CineSlab — read state, rewrite innerHTML,
+   re-attach handlers — with one deliberate exception: the viewfinder
+   subtree is built once and never torn down. Rebuilding it would drop
+   the <video> element's srcObject and restart the camera on every state
+   change, which on a phone is a visible half-second black frame.
+========================================================= */
+const TABS = [
+  { view:'shoot',     label:'Shoot',   icon:'<circle cx="12" cy="13" r="4"/><path d="M3 8h3l2-3h8l2 3h3v11H3z"/>' },
+  { view:'timelapse', label:'Lapse',   icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+  { view:'shots',     label:'Shots',   icon:'<path d="M4 5h16M4 12h16M4 19h10"/>' },
+  { view:'reports',   label:'Reports', icon:'<path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h5"/>' },
+  { view:'looks',     label:'Looks',   icon:'<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18 4.5 4.5 0 0 0 0-9 4.5 4.5 0 0 1 0-9z"/>' }
+];
+
+function ensureShell(){
+  const app = document.getElementById('app');
+  if(app.dataset.shell) return;
+  app.dataset.shell = '1';
+  app.innerHTML = `
+    <header class="bar" id="hdr"></header>
+    <div id="shootWrap" style="display:none;flex:1 1 auto;flex-direction:column;min-height:0;">
+      <div class="vf" id="vf"><div class="rec-border" id="recBorder"></div><div class="hud" id="hud"></div></div>
+      <div class="deck" id="deck"></div>
+    </div>
+    <div class="layout" id="layout"></div>
+    <nav class="tabs" id="nav"></nav>
+  `;
+  const vf = document.getElementById('vf');
+  const v = ensureVideoEl();
+  vf.insertBefore(v, vf.firstChild);
+  if(GL.canvas && !GL.canvas.parentNode) vf.insertBefore(GL.canvas, vf.firstChild);
+}
+
+function render(){
+  ensureShell();
+  const shootWrap = document.getElementById('shootWrap');
+  const layout = document.getElementById('layout');
+  const onShoot = state.view === 'shoot';
+
+  // Keep the GL canvas parented once it exists.
+  if(GL.canvas && !GL.canvas.parentNode){
+    const vf = document.getElementById('vf');
+    vf.insertBefore(GL.canvas, vf.firstChild);
+  }
+  const v = state.cam.video;
+  if(v) v.classList.toggle('hidden-src', !!(state.glReady && GL.canvas));
+  if(GL.canvas) GL.canvas.style.display = state.glReady ? '' : 'none';
+
+  shootWrap.style.display = onShoot ? 'flex' : 'none';
+  layout.style.display = onShoot ? 'none' : 'block';
+
+  renderHeader();
+  renderNav();
+  if(onShoot) renderShoot();
+  else renderMain(layout);
+  measureNav();
+}
+function measureNav(){
+  const nav = document.getElementById('nav');
+  if(nav) document.documentElement.style.setProperty('--nav-h', nav.offsetHeight + 'px');
+}
+function renderHeader(){
+  const hdr = document.getElementById('hdr');
+  const onShoot = state.view === 'shoot';
+  hdr.className = 'bar' + (onShoot ? ' overlay' : '');
+  const titles = { shoot:'', timelapse:'Time-lapse', shots:'Shot list', reports:'Camera reports',
+                   looks:'Looks', settings:'Setup', learn:'Glossary' };
+  hdr.innerHTML = `
+    <div class="brand">
+      <div>
+        <h1>${onShoot ? 'CineSlab Cam' : esc(titles[state.view] || 'CineSlab Cam')}</h1>
+        ${onShoot ? '<div class="brand-sub">Concrete Films</div>' : ''}
+      </div>
+    </div>
+    <div class="btn-row">
+      ${onShoot ? `<button class="btn btn-ghost btn-sm" id="flipBtn">Flip</button>` : ''}
+      <button class="btn btn-ghost btn-sm" id="setupBtn">${state.view === 'settings' ? 'Done' : 'Setup'}</button>
+    </div>`;
+  const flip = document.getElementById('flipBtn');
+  if(flip) flip.onclick = ()=>switchFacing();
+  document.getElementById('setupBtn').onclick = ()=>{
+    state.view = state.view === 'settings' ? 'shoot' : 'settings';
+    render();
+  };
+}
+function renderNav(){
+  const nav = document.getElementById('nav');
+  nav.innerHTML = TABS.map(t=>`
+    <button data-view="${t.view}" class="${state.view === t.view ? 'active' : ''}">
+      <svg viewBox="0 0 24 24">${t.icon}</svg>${esc(t.label)}
+    </button>`).join('');
+  $$('button', nav).forEach(b=>{
+    b.onclick = ()=>{ state.view = b.dataset.view; render(); };
+  });
+}
+/* state.view → renderer, exactly like CineSlab's renderMain dispatch. */
+function renderMain(main){
+  switch(state.view){
+    case 'timelapse': return renderTimelapse(main);
+    case 'shots':     return renderShots(main);
+    case 'reports':   return renderReports(main);
+    case 'looks':     return renderLooks(main);
+    case 'settings':  return renderSettings(main);
+    case 'learn':     return renderLearn(main);
+    default:          state.view = 'shoot'; return render();
+  }
+}
+
+/* =========================================================
+   SHOOT VIEW — viewfinder, HUD, control deck
+========================================================= */
+function renderShoot(){
+  renderHud();
+  renderDeck();
+  startHudTicker();
+}
+
+function hudOn(key){ return state.settings.hudModules.indexOf(key) !== -1; }
+
+function renderHud(){
+  const hud = document.getElementById('hud');
+  const cam = state.cam;
+  if(!cam.stream){
+    hud.innerHTML = '';
+    return;
+  }
+  const zones = { tl:[], tr:[], bl:[], br:[] };
+  const mod = (key, k, v, cls)=>`<div class="hud-mod ${cls||''}" data-hud="${key}">
+      <span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`;
+
+  if(hudOn('tc'))      zones.tl.push(mod('tc','TC', tcString(), 'wide'));
+  if(hudOn('lens'))    zones.tl.push(mod('lens','Lens', state.settings.focal + 'mm'));
+  if(hudOn('ei'))      zones.tl.push(mod('ei','EI', '—'));
+  if(hudOn('shutter')) zones.tl.push(mod('shutter','Shutter', state.settings.shutterAngle + '°'));
+  if(hudOn('lut'))     zones.tl.push(mod('lut','Look', (currentLut() && currentLut().name) || 'None'));
+  if(hudOn('wb'))      zones.tr.push(mod('wb','WB','—'));
+  if(hudOn('iris'))    zones.tr.push(mod('iris','Iris','—'));
+  if(hudOn('fps'))     zones.tr.push(mod('fps','FPS', state.settings.fps));
+  if(hudOn('focus'))   zones.tr.push(mod('focus','Focus','—'));
+  if(hudOn('battery')) zones.tr.push(mod('battery','Batt','—'));
+  if(hudOn('waveform'))  zones.bl.push('<div class="hud-scope"><canvas id="wfCanvas" width="192" height="96"></canvas></div>');
+  if(hudOn('histogram')) zones.bl.push('<div class="hud-scope"><canvas id="hgCanvas" width="192" height="96"></canvas></div>');
+  if(hudOn('audio')) zones.br.push(`<div class="hud-mod hud-meters">
+      <span class="k">Audio</span>
+      <div class="track"><div class="fill" id="audFill"></div></div>
+      <span class="k" id="audDb" style="text-align:right;">—</span></div>`);
+
+  // Digital-crop flag sits with the lens readout, never hidden by a preset:
+  // the one thing a viewer must not be quietly wrong about is whether the
+  // image is optical.
+  const plan = planFocal(state.settings.focal);
+  if(plan.digital && !plan.clamped){
+    zones.tl.push('<div class="hud-mod"><span class="digital-flag">Digital ' + plan.zoom.toFixed(1) + '×</span></div>');
+  }
+  const row = (cls, a, b)=> (a.length || b.length)
+    ? `<div class="hud-row ${cls}"><div class="hud-group">${a.join('')}</div>
+       <div class="hud-group right">${b.join('')}</div></div>` : '';
+  hud.innerHTML = row('hud-top', zones.tl, zones.tr) + row('hud-bottom', zones.bl, zones.br);
+  document.getElementById('recBorder').className = 'rec-border' + (state.rec.active && hudOn('recborder') ? ' on' : '');
+}
+
+let hudTimer = null, scopeTick = 0;
+function startHudTicker(){
+  if(hudTimer) return;
+  hudTimer = setInterval(()=>{
+    if(state.view !== 'shoot' || !state.cam.stream) return;
+    const live = state.cam.live || {}, s = state.settings;
+    const set = (key, val, cls)=>{
+      const el = document.querySelector('[data-hud="' + key + '"] .v');
+      if(!el) return;
+      el.textContent = val;
+      el.className = 'v' + (cls ? ' ' + cls : '');
+    };
+    if(state.rec.active) set('tc', tcString(), 'rec');
+    else set('tc', tcString());
+    set('lens', s.focal + 'mm');
+    set('ei', live.iso ? String(live.iso) : (camSupports('iso') ? (s.ei || 'Auto') : 'n/a'));
+    set('shutter', live.exposureTime != null
+      ? Math.round(secondsToAngle(live.exposureTime/10000, live.frameRate || s.fps)) + '°'
+      : s.shutterAngle + '°');
+    set('wb', live.colorTemperature ? live.colorTemperature + 'K'
+      : (camSupports('colorTemperature') ? (s.wbKelvin ? s.wbKelvin + 'K' : 'Auto') : 'Auto'));
+    set('iris', live.aperture ? 'f/' + live.aperture : 'Fixed');
+    set('fps', Math.round(live.frameRate || s.fps));
+    set('focus', live.focusDistance != null ? (live.focusDistance < 1
+      ? Math.round(live.focusDistance*100) + 'cm' : live.focusDistance.toFixed(1) + 'm') : 'n/a');
+    const b = batteryReadout();
+    set('battery', b.pct == null ? 'n/a'
+      : b.pct + '%' + (b.mins != null ? ' · ' + b.mins + 'm' : (b.charging ? ' · chg' : '')),
+      (b.pct != null && b.pct <= 15 && !b.charging) ? 'warn' : '');
+    set('lut', (currentLut() && currentLut().name) || 'None');
+
+    const db = audioPeakDb();
+    const fill = document.getElementById('audFill'), dbEl = document.getElementById('audDb');
+    if(fill && db != null){
+      const pct = clamp((db + 60) / 60 * 100, 0, 100);
+      fill.style.width = pct + '%';
+      fill.className = 'fill' + (db > -6 ? ' hot' : '');
+      if(dbEl) dbEl.textContent = db <= -99 ? '—' : Math.round(db) + ' dB';
+    }
+    // Scopes are heavier than text, so they run at roughly a third the rate.
+    scopeTick++;
+    if(scopeTick % 3 === 0){
+      const wf = document.getElementById('wfCanvas'), hg = document.getElementById('hgCanvas');
+      if(wf || hg){
+        const img = scopeSample();
+        if(wf) drawWaveform(wf, img);
+        if(hg) drawHistogram(hg, img);
+      }
+    }
+    if(state.rec.active){
+      const el = document.getElementById('recClock');
+      if(el) el.textContent = fmtClock(state.rec.elapsed);
+    }
+    if(state.lapse.active){
+      const el = document.getElementById('lapseStatus');
+      if(el){
+        const left = Math.max(0, (state.lapse.endAt - Date.now())/1000);
+        el.textContent = state.lapse.shots + ' frames · ' + fmtDuration(left) + ' left';
+      }
+    }
+  }, 150);
+}
+
+/* ---- Control deck ---------------------------------------------------- */
+function renderDeck(){
+  const deck = document.getElementById('deck');
+  const s = state.settings, cam = state.cam;
+
+  if(!cam.stream){
+    deck.innerHTML = `<div style="padding:16px;">
+      ${cam.error ? `<div class="note warn"><strong>Camera</strong><br>${esc(cam.error)}</div>` : ''}
+      <p class="muted" style="font-size:13px;line-height:1.6;margin:0 0 12px;">
+        ${cam.error ? 'Fix the above and try again.'
+          : 'The viewfinder needs camera access. Everything else — the time-lapse calculator, your shot list, reports and looks — works without it.'}
+      </p>
+      <button class="btn btn-tape" id="startCam" ${cam.starting ? 'disabled' : ''}>
+        ${cam.starting ? 'Starting…' : 'Start camera'}</button>
+    </div>`;
+    const b = document.getElementById('startCam');
+    if(b) b.onclick = ()=>startCamera(null);
+    renderVfMessage();
+    return;
+  }
+  renderVfMessage();
+
+  const lut = currentLut();
+  const chip = (key, k, v, extra)=>`<button class="chip ${state.deckPanel===key?'active':''} ${extra||''}" data-panel="${key}">
+      <span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></button>`;
+
+  deck.innerHTML = `
+    <div class="lens-row" id="lensRow">
+      ${focalOptions().map(o=>`<button class="lens ${s.focal===o.mm?'active':''} ${o.digital?'digital':''}"
+          data-mm="${o.mm}" ${o.unreachable?'disabled style="opacity:.35"':''}>${o.mm}mm</button>`).join('')}
+    </div>
+    <div class="deck-strip">
+      ${chip('ei','EI', s.autoExposure ? 'Auto' : (s.ei || '—'), camSupports('iso') ? '' : 'locked')}
+      ${chip('shutter','Shutter', s.shutterAngle + '°', camSupports('exposureTime') ? '' : 'locked')}
+      ${chip('wb','WB', s.autoWb ? 'Auto' : (s.wbKelvin ? s.wbKelvin + 'K' : '—'), camSupports('colorTemperature') ? '' : 'locked')}
+      ${chip('fps','FPS', s.fps)}
+      ${chip('look','Look', lut ? lut.name.replace(/^CF /,'') : 'None')}
+      ${chip('assist','Assist', (s.zebra?'Z':'') + (s.peaking?'P':'') || 'Off')}
+    </div>
+    ${state.deckPanel ? `<div class="deck-panel" id="deckPanel">${deckPanelHtml(state.deckPanel)}</div>` : ''}
+    <div class="shutter-row">
+      <div class="rec-side">
+        ${state.lapse.active
+          ? `<button class="btn btn-outline btn-sm" id="lapseStop">Stop lapse</button>`
+          : `<span class="mono tiny muted" id="recClock">${state.rec.active ? fmtClock(state.rec.elapsed) : ''}</span>`}
+      </div>
+      <button class="rec-btn ${state.rec.active?'recording':''}" id="recBtn" aria-label="${state.rec.active?'Stop recording':'Start recording'}"></button>
+      <div class="rec-side">
+        <span class="mono tiny muted">${esc(s.scene ? 'Sc' + s.scene : '')} ${esc(s.shotNum ? s.shotNum : '')} T${s.takeNum}</span>
+      </div>
+    </div>`;
+
+  $$('#lensRow .lens').forEach(b=>{
+    b.onclick = ()=>setFocal(Number(b.dataset.mm));
+  });
+  $$('.deck-strip .chip').forEach(b=>{
+    b.onclick = ()=>{
+      state.deckPanel = state.deckPanel === b.dataset.panel ? null : b.dataset.panel;
+      renderDeck();
+    };
+  });
+  document.getElementById('recBtn').onclick = ()=>toggleRecord();
+  const ls = document.getElementById('lapseStop');
+  if(ls) ls.onclick = ()=>stopLapse();
+  if(state.deckPanel) wireDeckPanel(state.deckPanel);
+}
+function renderVfMessage(){
+  const vf = document.getElementById('vf');
+  let msg = document.getElementById('vfMsg');
+  if(state.cam.stream){ if(msg) msg.remove(); return; }
+  if(!msg){
+    msg = document.createElement('div');
+    msg.className = 'vf-msg'; msg.id = 'vfMsg';
+    vf.appendChild(msg);
+  }
+  msg.innerHTML = `<h3>Viewfinder</h3>
+    <p>${state.cam.error ? esc(state.cam.error) : 'Camera not started.'}</p>`;
+}
+
+function deckPanelHtml(panel){
+  const s = state.settings;
+  if(panel === 'ei'){
+    const r = capRange('iso');
+    if(!camSupports('iso')) return lockedPanel('iso', 'ei');
+    return `
+      <div class="switch"><span class="lbl">Auto exposure</span>
+        <input type="checkbox" id="pAutoExp" ${s.autoExposure?'checked':''}></div>
+      <div class="row"><input type="range" id="pEi" min="${r.min}" max="${r.max}" step="${r.step||1}"
+        value="${s.ei || state.cam.live.iso || r.min}" ${s.autoExposure?'disabled':''}>
+        <span class="val" id="pEiVal">${s.ei || state.cam.live.iso || r.min}</span></div>
+      ${explain('ei')}`;
+  }
+  if(panel === 'shutter'){
+    const locked = !camSupports('exposureTime');
+    return `
+      ${locked ? `<div class="note warn" style="margin-top:10px;">${esc(CAP_NOTES.exposureTime)} The angle you pick is still written into the camera report.</div>` : ''}
+      <div class="row" style="flex-wrap:wrap;gap:6px;">
+        ${SHUTTER_ANGLES.map(a=>`<button class="lens ${Math.abs(s.shutterAngle-a)<0.01?'active':''}" data-angle="${a}">${a}°</button>`).join('')}
+      </div>
+      <div class="row"><span class="val" style="min-width:auto;">${esc(shutterLabel(s.shutterAngle, s.fps))}</span></div>
+      ${explain('shutter')}`;
+  }
+  if(panel === 'wb'){
+    if(!camSupports('colorTemperature')) return lockedPanel('colorTemperature', 'wb');
+    const r = capRange('colorTemperature');
+    return `
+      <div class="switch"><span class="lbl">Auto white balance</span>
+        <input type="checkbox" id="pAutoWb" ${s.autoWb?'checked':''}></div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;">
+        ${WB_PRESETS.filter(p=>p.k>=r.min && p.k<=r.max).map(p=>
+          `<button class="lens ${s.wbKelvin===p.k?'active':''}" data-k="${p.k}">${p.k}K</button>`).join('')}
+      </div>
+      <div class="row"><input type="range" id="pWb" min="${r.min}" max="${r.max}" step="${r.step||100}"
+        value="${s.wbKelvin || state.cam.live.colorTemperature || 5600}" ${s.autoWb?'disabled':''}>
+        <span class="val" id="pWbVal">${s.wbKelvin || state.cam.live.colorTemperature || 5600}K</span></div>
+      ${explain('wb')}`;
+  }
+  if(panel === 'fps'){
+    return `<div class="row" style="flex-wrap:wrap;gap:6px;">
+        ${FPS_OPTIONS.map(f=>`<button class="lens ${s.fps===f?'active':''}" data-fps="${f}">${f}</button>`).join('')}
+      </div>
+      ${camSupports('frameRate') ? '' : `<div class="explain">${esc(CAP_NOTES.frameRate)} The camera will shoot at whatever it prefers; this sets the rate used for timecode and shutter maths.</div>`}
+      ${explain('fps')}`;
+  }
+  if(panel === 'look'){
+    if(!state.glReady) return `<div class="note warn" style="margin-top:10px;">This browser has no WebGL, so looks can’t be previewed. Everything else still works.</div>`;
+    return `<div class="row" style="flex-wrap:wrap;gap:6px;">
+        <button class="lens ${!s.lutId?'active':''}" data-lut="">None</button>
+        ${state.luts.map(l=>`<button class="lens ${s.lutId===l.id?'active':''}" data-lut="${esc(l.id)}">${esc(l.name)}</button>`).join('')}
+      </div>
+      <div class="row"><span class="k tiny muted" style="width:56px;">Strength</span>
+        <input type="range" id="pLutMix" min="0" max="1" step="0.05" value="${s.lutStrength}">
+        <span class="val" id="pLutMixVal">${Math.round(s.lutStrength*100)}%</span></div>
+      <div class="switch"><span class="lbl">Bake the look into the recording
+        <small>Off = preview only, footage stays clean and gradeable. On = permanent.</small></span>
+        <input type="checkbox" id="pBake" ${s.recordGraded?'checked':''}></div>
+      ${explain('lut')}`;
+  }
+  if(panel === 'assist'){
+    if(!state.glReady) return `<div class="note warn" style="margin-top:10px;">Zebras and peaking need WebGL, which this browser doesn’t have.</div>`;
+    return `
+      <div class="switch"><span class="lbl">Zebras<small>Stripes anything at or above the level.</small></span>
+        <input type="checkbox" id="pZebra" ${s.zebra?'checked':''}></div>
+      <div class="row"><input type="range" id="pZebraLvl" min="50" max="109" step="1" value="${s.zebraLevel}">
+        <span class="val" id="pZebraVal">${s.zebraLevel} IRE</span></div>
+      <div class="switch"><span class="lbl">Focus peaking<small>Outlines what is sharply in focus.</small></span>
+        <input type="checkbox" id="pPeak" ${s.peaking?'checked':''}></div>
+      <div class="row"><input type="range" id="pPeakLvl" min="0.04" max="0.5" step="0.01" value="${s.peakLevel}">
+        <span class="val" id="pPeakVal">${Math.round(s.peakLevel*100)}</span></div>
+      ${explain('zebra')}${explain('peaking')}`;
+  }
+  return '';
+}
+function lockedPanel(cap, explainKey){
+  return `<div class="note warn" style="margin-top:10px;">${esc(CAP_NOTES[cap] || 'This device doesn’t expose that control.')}
+    <br><br>The camera will decide it automatically, and the report records what it actually used.</div>
+    ${explain(explainKey)}`;
+}
+function wireDeckPanel(panel){
+  const s = state.settings;
+  const save = ()=>{ debouncedSaveSettings(); };
+  if(panel === 'ei'){
+    const t = document.getElementById('pAutoExp');
+    if(t) t.onchange = async ()=>{ s.autoExposure = t.checked; save(); await applyAllControls(); renderDeck(); };
+    const r = document.getElementById('pEi');
+    if(r) r.oninput = ()=>{
+      s.ei = Number(r.value);
+      document.getElementById('pEiVal').textContent = r.value;
+      save(); applyIso();
+    };
+  }
+  if(panel === 'shutter'){
+    $$('[data-angle]').forEach(b=>{
+      b.onclick = async ()=>{ s.shutterAngle = Number(b.dataset.angle); save(); await applyShutter(); renderDeck(); };
+    });
+  }
+  if(panel === 'wb'){
+    const t = document.getElementById('pAutoWb');
+    if(t) t.onchange = async ()=>{ s.autoWb = t.checked; save(); await applyAllControls(); renderDeck(); };
+    $$('[data-k]').forEach(b=>{
+      b.onclick = async ()=>{ s.wbKelvin = Number(b.dataset.k); s.autoWb = false; save(); await applyWb(); renderDeck(); };
+    });
+    const r = document.getElementById('pWb');
+    if(r) r.oninput = ()=>{
+      s.wbKelvin = Number(r.value);
+      document.getElementById('pWbVal').textContent = r.value + 'K';
+      save(); applyWb();
+    };
+  }
+  if(panel === 'fps'){
+    $$('[data-fps]').forEach(b=>{
+      b.onclick = async ()=>{
+        s.fps = Number(b.dataset.fps); save();
+        if(camSupports('frameRate')) await applyCam({ frameRate: s.fps });
+        await applyShutter();
+        renderDeck();
+      };
+    });
+  }
+  if(panel === 'look'){
+    $$('[data-lut]').forEach(b=>{
+      b.onclick = ()=>{ s.lutId = b.dataset.lut || null; save(); renderDeck(); renderHud(); };
+    });
+    const r = document.getElementById('pLutMix');
+    if(r) r.oninput = ()=>{
+      s.lutStrength = Number(r.value);
+      document.getElementById('pLutMixVal').textContent = Math.round(s.lutStrength*100) + '%';
+      save();
+    };
+    const bake = document.getElementById('pBake');
+    if(bake) bake.onchange = ()=>{ s.recordGraded = bake.checked; save(); };
+  }
+  if(panel === 'assist'){
+    const z = document.getElementById('pZebra');
+    if(z) z.onchange = ()=>{ s.zebra = z.checked; save(); renderDeck(); };
+    const zl = document.getElementById('pZebraLvl');
+    if(zl) zl.oninput = ()=>{ s.zebraLevel = Number(zl.value); document.getElementById('pZebraVal').textContent = zl.value + ' IRE'; save(); };
+    const p = document.getElementById('pPeak');
+    if(p) p.onchange = ()=>{ s.peaking = p.checked; save(); renderDeck(); };
+    const pl = document.getElementById('pPeakLvl');
+    if(pl) pl.oninput = ()=>{ s.peakLevel = Number(pl.value); document.getElementById('pPeakVal').textContent = Math.round(s.peakLevel*100); save(); };
+  }
+}
+
+/* =========================================================
+   TIME-LAPSE VIEW
+========================================================= */
+function renderTimelapse(main){
+  const tl = state.settings.timelapse;
+  const plan = lapsePlan(tl);
+  const warns = lapseWarnings(plan, tl);
+  const subj = LAPSE_SUBJECTS[tl.subject];
+  const solveInterval = tl.mode === 'solveInterval';
+
+  main.innerHTML = `<div class="page">
+    <div class="view-head">
+      <h2>Time-lapse</h2>
+      <p>Work out the interval before you get there. Needs no camera — plan on the bus, shoot later, on this phone or on a real camera.</p>
+    </div>
+
+    <div class="paper">
+      <div class="field">
+        <label>What are you solving for?</label>
+        <select id="tlMode">
+          <option value="solveInterval" ${solveInterval?'selected':''}>I know the clip length I want → give me the interval</option>
+          <option value="solveDuration" ${!solveInterval?'selected':''}>I know my interval → tell me the clip I'll get</option>
+        </select>
+      </div>
+      <div class="form-grid">
+        ${solveInterval ? `
+          <div class="field"><label>Final clip length</label>
+            <input type="number" id="tlFinal" min="0.5" step="0.5" value="${tl.finalSeconds}"><span class="tiny muted">seconds</span></div>
+          <div class="field"><label>Playback frame rate</label>
+            <select id="tlFps">${[24,25,30,60].map(f=>`<option ${tl.playbackFps===f?'selected':''}>${f}</option>`).join('')}</select></div>
+          <div class="field"><label>Time you'll be shooting</label>
+            <input type="number" id="tlShootMin" min="1" step="1" value="${Math.round(tl.shootSeconds/60)}"><span class="tiny muted">minutes</span></div>
+        ` : `
+          <div class="field"><label>Interval between frames</label>
+            <input type="number" id="tlInterval" min="0.1" step="0.1" value="${tl.interval}"><span class="tiny muted">seconds</span></div>
+          <div class="field"><label>Time you'll be shooting</label>
+            <input type="number" id="tlShootMin" min="1" step="1" value="${Math.round(tl.shootSeconds/60)}"><span class="tiny muted">minutes</span></div>
+          <div class="field"><label>Playback frame rate</label>
+            <select id="tlFps">${[24,25,30,60].map(f=>`<option ${tl.playbackFps===f?'selected':''}>${f}</option>`).join('')}</select></div>
+        `}
+      </div>
+      <div class="field"><label>Subject</label>
+        <select id="tlSubject">
+          ${Object.keys(LAPSE_SUBJECTS).map(k=>`<option value="${k}" ${tl.subject===k?'selected':''}>${esc(LAPSE_SUBJECTS[k].label)}</option>`).join('')}
+        </select>
+      </div>
+      ${subj ? `<div class="tiny muted" style="line-height:1.55;">${esc(subj.note)} Usual interval: ${fmtInterval(subj.min)}–${fmtInterval(subj.max)}.</div>
+        <div class="btn-row" style="margin-top:10px;"><button class="btn btn-outline btn-sm" id="tlUseTypical">Use ${fmtInterval(subj.typical)} — the typical interval</button></div>` : ''}
+      <div class="form-grid" style="margin-top:14px;">
+        <div class="field"><label>Resolution</label>
+          <select id="tlRes">${Object.keys(LAPSE_RES).map(k=>`<option value="${k}" ${tl.resolution===k?'selected':''}>${LAPSE_RES[k].label}</option>`).join('')}</select></div>
+        <div class="field"><label>Stored as</label>
+          <select id="tlCodec">${Object.keys(LAPSE_CODECS).map(k=>`<option value="${k}" ${tl.codec===k?'selected':''}>${esc(LAPSE_CODECS[k].label)}</option>`).join('')}</select></div>
+      </div>
+    </div>
+
+    <div class="section-title">The numbers</div>
+    <div class="paper">
+      <table class="data">
+        <tr><th>Interval between frames</th><td class="mono">${esc(fmtInterval(plan.interval))}</td></tr>
+        <tr><th>Total frames to shoot</th><td class="mono">${plan.frames.toLocaleString()}</td></tr>
+        <tr><th>Time on location</th><td class="mono">${esc(fmtDuration(plan.shootSeconds))}</td></tr>
+        <tr><th>Finished clip length</th><td class="mono">${esc(fmtDuration(plan.finalSeconds))} at ${plan.fps}fps</td></tr>
+        <tr><th>Storage</th><td class="mono">${esc(fmtBytes(plan.storageBytes))} <span class="muted tiny">(${esc(plan.codec.label)}, ${esc(plan.res.label)})</span></td></tr>
+        <tr><th>Battery</th><td class="mono">~${Math.round(plan.batteryPct)}% <span class="muted tiny">(≈${plan.perHour}%/hr with the screen on)</span></td></tr>
+      </table>
+      <div class="tiny muted" style="margin-top:10px;line-height:1.5;">
+        Storage and battery are planning estimates — real files move with how much detail is in the scene.
+      </div>
+    </div>
+
+    ${warns.map(w=>`<div class="note ${w.level==='warn'?'warn':''}">${esc(w.text)}</div>`).join('')}
+
+    <div class="section-title">Shoot it here</div>
+    <div class="paper">
+      ${!state.cam.stream ? `<div class="empty">Start the camera on the Shoot tab to capture a sequence on this device.</div>` : `
+        <div class="list-item"><div class="grow">
+          <div class="ttl">${state.lapse.active ? 'Shooting' : (state.lapse.frames.length ? 'Captured' : 'Ready')}</div>
+          <div class="sub" id="lapseStatus">${state.lapse.active
+            ? state.lapse.shots + ' frames'
+            : (state.lapse.frames.length
+                ? state.lapse.frames.length + ' frames held in memory — assemble or discard before you leave this page'
+                : 'One frame every ' + fmtInterval(plan.interval) + ', for ' + fmtDuration(plan.shootSeconds))}</div>
+        </div></div>
+        <div class="btn-row" style="margin-top:12px;">
+          ${state.lapse.active
+            ? `<button class="btn btn-danger" id="tlStop">Stop</button>`
+            : `<button class="btn btn-tape" id="tlStart" ${plan.frames > MAX_LAPSE_FRAMES ? 'disabled' : ''}>Start shooting</button>`}
+          ${state.lapse.frames.length && !state.lapse.active
+            ? `<button class="btn btn-chalk" id="tlAssemble">Assemble clip</button>
+               <button class="btn btn-outline" id="tlDiscard">Discard frames</button>` : ''}
+        </div>
+        ${plan.frames > MAX_LAPSE_FRAMES ? `<div class="tiny muted" style="margin-top:8px;">Too many frames to shoot in-app. The plan above is still good for a real camera.</div>` : ''}
+        <div class="tiny muted" style="margin-top:10px;line-height:1.5;">
+          Frames are held in memory until you assemble them, so don't close the tab mid-shoot.
+          Assembly replays them at ${plan.fps}fps and records the result, so it takes about ${esc(fmtDuration(plan.finalSeconds))}.
+        </div>`}
+    </div>
+    ${state.settings.learnMode ? `<div class="paper"><h3>Why this works</h3>${explain('timelapse')}</div>` : ''}
+  </div>`;
+
+  const upd = (fn)=>{ fn(); saveSettings(); renderTimelapse(main); };
+  const on = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el[ev] = fn; };
+
+  on('tlMode','onchange', e=>upd(()=>{ tl.mode = e.target.value; }));
+  on('tlFinal','oninput', e=>upd(()=>{ tl.finalSeconds = Math.max(0.1, Number(e.target.value)||1); }));
+  on('tlInterval','oninput', e=>upd(()=>{ tl.interval = Math.max(0.1, Number(e.target.value)||1); }));
+  on('tlShootMin','oninput', e=>upd(()=>{ tl.shootSeconds = Math.max(1, (Number(e.target.value)||1) * 60); }));
+  on('tlFps','onchange', e=>upd(()=>{ tl.playbackFps = Number(e.target.value); }));
+  on('tlSubject','onchange', e=>upd(()=>{ tl.subject = e.target.value; }));
+  on('tlRes','onchange', e=>upd(()=>{ tl.resolution = e.target.value; }));
+  on('tlCodec','onchange', e=>upd(()=>{ tl.codec = e.target.value; }));
+  on('tlUseTypical','onclick', ()=>upd(()=>{
+    const t = LAPSE_SUBJECTS[tl.subject];
+    if(!t) return;
+    if(tl.mode === 'solveDuration'){ tl.interval = t.typical; }
+    else {
+      // Hold the clip length, move the location time to land on the typical interval.
+      tl.shootSeconds = Math.round(t.typical * tl.finalSeconds * tl.playbackFps);
+    }
+  }));
+  on('tlStart','onclick', ()=>startLapse());
+  on('tlStop','onclick', ()=>stopLapse());
+  on('tlAssemble','onclick', ()=>assembleLapse());
+  on('tlDiscard','onclick', async ()=>{
+    if(await openConfirmModal('Discard frames', 'Throw away the ' + state.lapse.frames.length + ' captured frames?', 'Discard')) discardLapse();
+  });
+}
+
+/* =========================================================
+   SHOT LIST VIEW — read-only pull from CineSlab
+========================================================= */
+function renderShots(main){
+  const sh = state.shots;
+  const lists = sh.lists || [];
+  main.innerHTML = `<div class="page">
+    <div class="view-head">
+      <h2>Shot list</h2>
+      <p>Pull what you planned in CineSlab, then load a shot straight into the camera. Read-only — this app never writes back.</p>
+    </div>
+
+    ${!sh.signedIn ? `
+      <div class="paper">
+        <h3>Sign in to CineSlab</h3>
+        <p class="tiny muted" style="line-height:1.55;margin:6px 0 12px;">Same account as CineSlab. Skip it if you just want the camera and the calculator — neither needs an account.</p>
+        <div class="field"><label>Email</label><input type="email" id="sbEmail" autocomplete="username"></div>
+        <div class="field"><label>Password</label><input type="password" id="sbPass" autocomplete="current-password"></div>
+        <button class="btn btn-tape" id="sbGo">Sign in</button>
+      </div>` : `
+      <div class="paper">
+        <div class="list-item"><div class="grow">
+          <div class="ttl">Signed in</div><div class="sub">${esc(sh.email)}</div>
+        </div><button class="btn btn-outline btn-sm" id="sbOut">Sign out</button></div>
+        <div class="field" style="margin-top:12px;"><label>Project</label>
+          <select id="sbProj">
+            <option value="">Choose a project…</option>
+            ${sh.projects.map(p=>`<option value="${esc(p.id)}" ${state.settings.projectId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+          </select></div>
+        <div class="btn-row">
+          <button class="btn btn-outline btn-sm" id="sbRefresh">Refresh projects</button>
+          <button class="btn btn-chalk btn-sm" id="sbPull">Pull shot lists</button>
+        </div>
+      </div>`}
+
+    ${sh.pulledAt ? `<div class="tiny muted" style="margin:-4px 0 12px;">Last pulled ${esc(new Date(sh.pulledAt).toLocaleString())}${state.settings.projectName ? ' · ' + esc(state.settings.projectName) : ''}</div>` : ''}
+
+    ${!lists.length ? `<div class="empty">No shot lists yet.<br>Pull them from a CineSlab project, or just shoot — the camera doesn't need them.</div>`
+      : lists.map(l=>`
+        <div class="section-title">${esc(l.name || 'Untitled list')}</div>
+        <div class="paper">
+          ${(l.shots||[]).length ? (l.shots||[]).map(shot=>{
+            const f = focalForShot(shot);
+            return `<div class="list-item">
+              <div class="grow">
+                <div class="ttl">${esc([shot.scene ? 'Sc ' + shot.scene : '', shot.shotNum, shot.type].filter(Boolean).join(' · ') || 'Shot')}</div>
+                <div class="sub">${esc(shot.desc || '')}</div>
+                <div class="sub"><span class="badge ${f.fromList?'on':''}">${f.mm}mm${f.fromList?'':' suggested'}</span> ${esc(f.why)}</div>
+              </div>
+              <button class="btn btn-outline btn-sm" data-load="${esc(shot.id||'')}" data-list="${esc(l.id||'')}">Load</button>
+            </div>`;
+          }).join('') : '<div class="empty">This list has no shots.</div>'}
+        </div>`).join('')}
+  </div>`;
+
+  const on = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el[ev] = fn; };
+  on('sbGo','onclick', async ()=>{
+    const email = (document.getElementById('sbEmail').value || '').trim();
+    const pass = document.getElementById('sbPass').value || '';
+    if(!email || !pass) return toast('Enter your email and password.', true);
+    toast('Signing in…');
+    const r = await sbSignIn(email, pass);
+    if(!r.ok) return toast(r.message, true);
+    await fetchProjects();
+    render();
+  });
+  on('sbOut','onclick', ()=>sbSignOut());
+  on('sbRefresh','onclick', async ()=>{
+    const r = await fetchProjects();
+    toast(r.ok ? 'Projects refreshed.' : r.message, !r.ok);
+    render();
+  });
+  on('sbProj','onchange', e=>{ state.settings.projectId = e.target.value || null; debouncedSaveSettings(); });
+  on('sbPull','onclick', async ()=>{
+    const id = state.settings.projectId;
+    if(!id) return toast('Choose a project first.', true);
+    toast('Pulling…');
+    const r = await pullShotlists(id);
+    toast(r.ok ? 'Pulled ' + r.count + ' shots.' : r.message, !r.ok);
+    render();
+  });
+  $$('[data-load]').forEach(b=>{
+    b.onclick = ()=>{
+      const list = lists.find(l=>String(l.id) === b.dataset.list);
+      const shot = list && (list.shots||[]).find(s=>String(s.id) === b.dataset.load);
+      if(shot) loadShot(shot);
+    };
+  });
+}
+
+/* =========================================================
+   REPORTS VIEW
+========================================================= */
+function renderReports(main){
+  const s = state.settings;
+  const r = state.reports.find(x=>x.id === s.reportId) || state.reports[0] || null;
+  main.innerHTML = `<div class="page">
+    <div class="view-head">
+      <h2>Camera reports</h2>
+      <p>Filled in automatically the moment a take ends, from what the camera was actually doing — not from what you meant to set.</p>
+    </div>
+
+    <div class="section-title">Slate</div>
+    <div class="paper">
+      <div class="form-grid">
+        <div class="field"><label>Scene</label><input type="text" id="slScene" value="${esc(s.scene)}" placeholder="12"></div>
+        <div class="field"><label>Shot</label><input type="text" id="slShot" value="${esc(s.shotNum)}" placeholder="A"></div>
+        <div class="field"><label>Take</label><input type="number" id="slTake" min="1" value="${s.takeNum}"></div>
+        <div class="field"><label>Card / roll</label><input type="text" id="slRoll" value="${esc(s.roll)}"></div>
+      </div>
+      <div class="tiny muted">These stamp the next take, and name the file it writes.</div>
+    </div>
+
+    ${!r ? `<div class="empty">No reports yet. Record a take and one appears.</div>` : `
+      <div class="section-title">${esc(r.name)}</div>
+      <div class="paper">
+        <div class="btn-row" style="margin-bottom:12px;">
+          <button class="btn btn-chalk btn-sm" id="rExport">Export CSV</button>
+          <button class="btn btn-outline btn-sm" id="rNew">New report</button>
+          ${state.reports.length > 1 ? `<button class="btn btn-outline btn-sm" id="rSwitch">Switch (${state.reports.length})</button>` : ''}
+        </div>
+        ${!r.takes.length ? '<div class="empty">No takes logged yet.</div>' : `
+        <div class="scroll-x"><table class="data">
+          <thead><tr><th>Sc/Sh</th><th>Take</th><th>TC</th><th>Dur</th><th>Lens</th><th>EI</th><th>Sh</th><th>WB</th><th>Look</th></tr></thead>
+          <tbody>${r.takes.map(t=>`<tr>
+            <td>${esc([t.scene, t.shot].filter(Boolean).join('/') || '—')}</td>
+            <td class="mono">${t.take}</td>
+            <td class="mono tiny">${esc(t.startTc)}</td>
+            <td class="mono tiny">${esc(fmtDuration(t.duration))}</td>
+            <td class="mono">${t.focal}${t.digital?'<span class="badge warn" style="margin-left:3px;">D</span>':''}</td>
+            <td class="mono">${t.ei || '—'}</td>
+            <td class="mono">${t.shutterAngle}°</td>
+            <td class="mono">${t.wb ? t.wb + 'K' : 'Auto'}</td>
+            <td class="tiny">${esc(t.lut)}${t.lutBaked?' <span class="badge warn">baked</span>':''}</td>
+          </tr>
+          ${(t.flags||[]).length ? `<tr><td colspan="9" class="tiny" style="color:var(--warn);padding-top:0;">⚠ ${esc(t.flags.join(' '))}</td></tr>` : ''}
+          `).join('')}</tbody>
+        </table></div>`}
+      </div>`}
+  </div>`;
+
+  const on = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el[ev] = fn; };
+  on('slScene','oninput', e=>{ s.scene = e.target.value; debouncedSaveSettings(); });
+  on('slShot','oninput', e=>{ s.shotNum = e.target.value; debouncedSaveSettings(); });
+  on('slTake','oninput', e=>{ s.takeNum = Math.max(1, Number(e.target.value)||1); debouncedSaveSettings(); });
+  on('slRoll','oninput', e=>{ s.roll = e.target.value; debouncedSaveSettings(); });
+  on('rExport','onclick', ()=>exportReportCsv(r));
+  on('rNew','onclick', async ()=>{
+    const nr = emptyReport();
+    const name = await openPromptModal('Name this report', 'e.g. "Day 3 — Camera A"', nr.name);
+    if(!name) return;
+    nr.name = name;
+    state.reports.unshift(nr);
+    if(state.reports.length > MAX_REPORTS) state.reports.length = MAX_REPORTS;
+    s.reportId = nr.id; s.takeNum = 1;
+    await saveReports(); await saveSettings();
+    render();
+  });
+  on('rSwitch','onclick', async ()=>{
+    const names = state.reports.map((x,i)=>(i+1) + '. ' + x.name).join('\n');
+    const pick = await openPromptModal('Switch report', 'Type a number:\n' + names, '1');
+    const i = Number(pick) - 1;
+    if(state.reports[i]){ s.reportId = state.reports[i].id; await saveSettings(); render(); }
+  });
+}
+
+/* =========================================================
+   LOOKS VIEW
+========================================================= */
+function renderLooks(main){
+  const s = state.settings;
+  const custom = state.luts.filter(l=>!l.builtin);
+  main.innerHTML = `<div class="page">
+    <div class="view-head">
+      <h2>Looks</h2>
+      <p>A look sits on the viewfinder so you can judge the image the way it will finally be seen. Your recording stays clean unless you say otherwise.</p>
+    </div>
+    ${!state.glReady ? `<div class="note warn"><strong>No WebGL on this browser.</strong> Looks can't be previewed here. The camera, HUD readouts, reports and the time-lapse calculator all still work.</div>` : ''}
+
+    <div class="paper">
+      <div class="switch"><span class="lbl">Bake the look into the recording
+        <small>Off (recommended) — footage records clean and can still be graded any way you like.<br>
+        On — what you see is written to the file, permanently.</small></span>
+        <input type="checkbox" id="lkBake" ${s.recordGraded?'checked':''}></div>
+      <div class="row" style="display:flex;align-items:center;gap:10px;padding-top:12px;">
+        <span class="tiny muted" style="width:64px;">Strength</span>
+        <input type="range" id="lkMix" min="0" max="1" step="0.05" value="${s.lutStrength}">
+        <span class="mono" style="min-width:48px;text-align:right;" id="lkMixVal">${Math.round(s.lutStrength*100)}%</span>
+      </div>
+    </div>
+
+    <div class="section-title">Built in</div>
+    <div class="paper">
+      <div class="list-item"><div class="grow"><div class="ttl">None</div>
+        <div class="sub">Straight out of the sensor. What the camera sees.</div></div>
+        <button class="btn ${!s.lutId?'btn-chalk':'btn-outline'} btn-sm" data-pick="">${!s.lutId?'Active':'Use'}</button></div>
+      ${state.luts.filter(l=>l.builtin).map(l=>`
+        <div class="list-item"><div class="grow"><div class="ttl">${esc(l.name)}</div>
+          <div class="sub">${esc(l.desc||'')}</div></div>
+          <button class="btn ${s.lutId===l.id?'btn-chalk':'btn-outline'} btn-sm" data-pick="${esc(l.id)}">${s.lutId===l.id?'Active':'Use'}</button></div>`).join('')}
+    </div>
+
+    <div class="section-title">Your LUTs</div>
+    <div class="paper">
+      ${custom.length ? custom.map(l=>`
+        <div class="list-item"><div class="grow"><div class="ttl">${esc(l.name)}</div>
+          <div class="sub">${l.size}³ · imported</div></div>
+          <button class="btn ${s.lutId===l.id?'btn-chalk':'btn-outline'} btn-sm" data-pick="${esc(l.id)}">${s.lutId===l.id?'Active':'Use'}</button>
+          <button class="btn btn-danger btn-sm" data-del="${esc(l.id)}">✕</button></div>`).join('')
+        : '<div class="empty">No imported LUTs yet.</div>'}
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-outline btn-sm" id="lkImport">Import a .cube file</button>
+      </div>
+      <input type="file" id="lkFile" accept=".cube,text/plain" style="display:none;">
+      <div class="tiny muted" style="margin-top:8px;line-height:1.5;">
+        3D .cube files up to 64³. ${MAX_LUTS} imports max.
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>On selling looks.</strong> Generating a LUT by matching a frame from someone else's film — and then selling it — is legally murky ground, whatever the result is called. The built-ins here are original curves, not derived from any film or stock. See CAMERA-COMPANION.md §2.3.
+    </div>
+    ${s.learnMode ? `<div class="paper"><h3>What a LUT is</h3>${explain('lut')}</div>` : ''}
+  </div>`;
+
+  const on = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el[ev] = fn; };
+  $$('[data-pick]').forEach(b=>{
+    b.onclick = ()=>{ s.lutId = b.dataset.pick || null; saveSettings(); render(); };
+  });
+  $$('[data-del]').forEach(b=>{
+    b.onclick = async ()=>{
+      const l = state.luts.find(x=>x.id === b.dataset.del);
+      if(!l) return;
+      if(!(await openConfirmModal('Delete LUT', 'Remove "' + l.name + '"?', 'Delete'))) return;
+      state.luts = state.luts.filter(x=>x.id !== l.id);
+      if(s.lutId === l.id) s.lutId = null;
+      GL.lutId = null;
+      await saveLuts(); await saveSettings();
+      render();
+    };
+  });
+  on('lkBake','onchange', e=>{ s.recordGraded = e.target.checked; saveSettings(); });
+  on('lkMix','oninput', e=>{
+    s.lutStrength = Number(e.target.value);
+    document.getElementById('lkMixVal').textContent = Math.round(s.lutStrength*100) + '%';
+    debouncedSaveSettings();
+  });
+  on('lkImport','onclick', ()=>document.getElementById('lkFile').click());
+  on('lkFile','onchange', async e=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    if(file.size > LUT_BYTES_LIMIT){
+      return openAlertModal('Too big', 'That file is ' + fmtBytes(file.size) + '. The limit is ' + fmtBytes(LUT_BYTES_LIMIT) + ' — a 3D LUT above 64³ is far more precision than a viewfinder can show.');
+    }
+    if(state.luts.filter(l=>!l.builtin).length >= MAX_LUTS){
+      return openAlertModal('LUT limit', 'You already have ' + MAX_LUTS + ' imported LUTs. Delete one first.');
+    }
+    try{
+      const text = await file.text();
+      const cube = parseCube(text);
+      const lut = {
+        id: uid(),
+        name: cube.title || file.name.replace(/\.cube$/i, ''),
+        size: cube.size, data: cube.data, builtin: false
+      };
+      state.luts.push(lut);
+      s.lutId = lut.id;
+      await saveLuts(); await saveSettings();
+      render();
+      toast('Imported ' + lut.name + ' (' + lut.size + '³).');
+    }catch(err){
+      openAlertModal('Could not read that LUT', err.message);
+    }
+    e.target.value = '';
+  });
+}
+
+/* =========================================================
+   SETTINGS VIEW
+========================================================= */
+function renderSettings(main){
+  const s = state.settings;
+  const caps = state.cam.caps || {};
+  const capRow = (name, label)=>{
+    const ok = camSupports(name);
+    return `<div class="list-item"><div class="grow"><div class="ttl">${esc(label)}</div>
+      <div class="sub">${ok ? esc(rangeLabel(name)) : esc(CAP_NOTES[name] || 'Not available on this device.')}</div></div>
+      <span class="badge ${ok?'on':''}">${ok?'Yes':'No'}</span></div>`;
+  };
+  main.innerHTML = `<div class="page">
+    <div class="view-head"><h2>Setup</h2><p>${esc(APP_NAME)} ${esc(APP_VERSION)} · storage: ${esc((window.__storageBackend && window.__storageBackend()) || 'host')}</p></div>
+
+    <div class="section-title">HUD</div>
+    <div class="paper">
+      <div class="field"><label>Preset</label>
+        <select id="stPreset">
+          ${Object.keys(HUD_PRESETS).map(k=>`<option value="${k}" ${s.hudPreset===k?'selected':''}>${esc(HUD_PRESETS[k].label)} — ${esc(HUD_PRESETS[k].desc)}</option>`).join('')}
+          <option value="custom" ${s.hudPreset==='custom'?'selected':''}>Custom</option>
+        </select></div>
+      ${HUD_MODULES.map(m=>`<div class="switch"><span class="lbl">${esc(m.label)}<small>${esc(m.desc)}</small></span>
+        <input type="checkbox" data-hudmod="${m.key}" ${hudOn(m.key)?'checked':''}></div>`).join('')}
+    </div>
+
+    <div class="section-title">Lens calibration</div>
+    <div class="paper">
+      <p class="tiny muted" style="line-height:1.55;margin:0 0 12px;">
+        No browser will tell us a phone's real focal lengths, so the focal picker works off these numbers.
+        Look up your device's 35mm-equivalent figures and put them in — everything the app labels as a focal length depends on them.
+      </p>
+      <div class="form-grid">
+        ${['ultrawide','wide','tele'].map(k=>`<div class="field"><label>${k==='ultrawide'?'Ultra-wide':k==='wide'?'Main / wide':'Telephoto'}</label>
+          <input type="number" min="5" max="400" data-base="${k}" value="${s.lensBases[k]}"><span class="tiny muted">mm equivalent</span></div>`).join('')}
+      </div>
+      <div class="section-title" style="margin-top:6px;">Cameras found</div>
+      ${state.cam.devices.length ? state.cam.devices.map(d=>`<div class="list-item"><div class="grow">
+        <div class="ttl">${esc(d.label)}</div><div class="sub">${esc(d.role)}${d.front?' · front':''} · base ${baseFocalFor(d)}mm</div>
+      </div></div>`).join('') : '<div class="empty">Start the camera to see what this device has.</div>'}
+      ${explain('digital')}
+    </div>
+
+    <div class="section-title">Capture</div>
+    <div class="paper">
+      <div class="field"><label>Resolution</label>
+        <select id="stRes">${Object.keys(RES_PRESETS).map(k=>`<option value="${k}" ${s.resolution===k?'selected':''}>${k==='4k'?'4K':k+'p'}</option>`).join('')}</select></div>
+      <div class="field"><label>Timecode</label>
+        <select id="stTc">
+          <option value="freerun" ${s.tcMode==='freerun'?'selected':''}>Free run — counts from when the app opened</option>
+          <option value="timeofday" ${s.tcMode==='timeofday'?'selected':''}>Time of day — reads the device clock</option>
+        </select></div>
+      <div class="switch"><span class="lbl">Explain controls<small>Plain-language "why this matters" under every control. Turn it off once you're past it.</small></span>
+        <input type="checkbox" id="stLearn" ${s.learnMode?'checked':''}></div>
+    </div>
+
+    <div class="section-title">What this device actually exposes</div>
+    <div class="paper">
+      ${state.cam.stream ? `
+        ${capRow('iso','ISO / EI')}
+        ${capRow('exposureTime','Shutter (exposure time)')}
+        ${capRow('colorTemperature','White balance in Kelvin')}
+        ${capRow('focusDistance','Focus distance')}
+        ${capRow('zoom','Optical zoom')}
+        ${capRow('frameRate','Frame rate')}
+        <div class="list-item"><div class="grow"><div class="ttl">Aperture</div>
+          <div class="sub">No browser API exists for iris on any platform. Phone lenses are fixed-aperture anyway.</div></div>
+          <span class="badge">No</span></div>
+        <div class="list-item"><div class="grow"><div class="ttl">WebGL preview</div>
+          <div class="sub">Needed for looks, zebras and focus peaking.</div></div>
+          <span class="badge ${state.glReady?'on':''}">${state.glReady?'Yes':'No'}</span></div>
+        <div class="list-item"><div class="grow"><div class="ttl">Recording</div>
+          <div class="sub">MediaRecorder — needed to write video files.</div></div>
+          <span class="badge ${recordingSupported()?'on':''}">${recordingSupported()?'Yes':'No'}</span></div>
+      ` : '<div class="empty">Start the camera to see what it will let the browser control.</div>'}
+    </div>
+
+    <div class="btn-row" style="margin-bottom:14px;">
+      <button class="btn btn-outline btn-sm" id="stGlossary">Glossary</button>
+      <button class="btn btn-outline btn-sm" id="stReset">Reset settings</button>
+    </div>
+  </div>`;
+
+  const on = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el[ev] = fn; };
+  on('stPreset','onchange', e=>{
+    const v = e.target.value;
+    s.hudPreset = v;
+    if(HUD_PRESETS[v]) s.hudModules = HUD_PRESETS[v].modules.slice();
+    saveSettings(); render();
+  });
+  $$('[data-hudmod]').forEach(cb=>{
+    cb.onchange = ()=>{
+      const k = cb.dataset.hudmod;
+      s.hudModules = cb.checked ? s.hudModules.concat([k]) : s.hudModules.filter(x=>x!==k);
+      s.hudPreset = 'custom';
+      saveSettings();
+      const sel = document.getElementById('stPreset');
+      if(sel) sel.value = 'custom';
+    };
+  });
+  $$('[data-base]').forEach(inp=>{
+    inp.oninput = ()=>{
+      s.lensBases[inp.dataset.base] = clamp(Number(inp.value)||26, 5, 400);
+      debouncedSaveSettings();
+    };
+  });
+  on('stRes','onchange', async e=>{ s.resolution = e.target.value; await saveSettings(); if(state.cam.stream) startCamera(state.cam.deviceId); });
+  on('stTc','onchange', e=>{ s.tcMode = e.target.value; saveSettings(); });
+  on('stLearn','onchange', e=>{ s.learnMode = e.target.checked; saveSettings(); render(); });
+  on('stGlossary','onclick', ()=>{ state.view = 'learn'; render(); });
+  on('stReset','onclick', async ()=>{
+    if(!(await openConfirmModal('Reset settings', 'Put every setting back to its default? Your reports and imported LUTs are kept.', 'Reset'))) return;
+    state.settings = defaultSettings();
+    await saveSettings();
+    render();
+    toast('Settings reset.');
+  });
+}
+function rangeLabel(name){
+  const r = capRange(name);
+  if(!r) return 'Supported.';
+  const unit = name === 'colorTemperature' ? 'K' : name === 'exposureTime' ? ' (100µs units)' : '';
+  return 'Range ' + r.min + '–' + r.max + unit + (r.step ? ', step ' + r.step : '');
+}
+
+/* =========================================================
+   GLOSSARY VIEW
+========================================================= */
+function renderLearn(main){
+  main.innerHTML = `<div class="page">
+    <div class="view-head"><h2>Glossary</h2>
+      <p>The words that get used on set as if everyone already knows them.</p></div>
+    <div class="paper">
+      ${GLOSSARY.map(([term, def])=>`<div class="list-item"><div class="grow">
+        <div class="ttl">${esc(term)}</div><div class="sub">${esc(def)}</div></div></div>`).join('')}
+    </div>
+    <div class="note">
+      The full teaching layer — the 180-degree rule drawn out, composition before-and-afters,
+      live depth-of-field against the aperture slider — is Phase 2 in the product doc.
+      What's here is the part that fits alongside a viewfinder.
+    </div>
+    <button class="btn btn-outline btn-sm" id="lnBack">Back to setup</button>
+  </div>`;
+  document.getElementById('lnBack').onclick = ()=>{ state.view = 'settings'; render(); };
+}
+
+/* =========================================================
+   BOOT
+========================================================= */
+async function boot(){
+  state.settings = normalizeSettings(await storeGet(KEY_SETTINGS, false));
+  state.reports  = normalizeReports(await storeGet(KEY_REPORTS, false));
+  const customLuts = (await storeGet(KEY_LUTS, false)) || [];
+  state.luts = makeBuiltinLuts().concat(customLuts.filter(l=>l && l.data && l.size));
+
+  // A shot list pulled on wi-fi has to still be there in a field with no
+  // signal, so the last pull is cached and shown before any network call.
+  const cached = await storeGet(KEY_SHOTS, false);
+  if(cached && Array.isArray(cached.lists)){
+    state.shots.lists = cached.lists;
+    state.shots.pulledAt = cached.pulledAt || null;
+    if(cached.projectId && !state.settings.projectId){
+      state.settings.projectId = cached.projectId;
+      state.settings.projectName = cached.projectName || '';
+    }
+  }
+  if(state.settings.lutId && !state.luts.some(l=>l.id === state.settings.lutId)){
+    state.settings.lutId = null;
+  }
+
+  initBattery();
+  state.booted = true;
+  render();
+
+  // Nothing above this line touches the network. Session restore is a
+  // best-effort extra: if the CDN is unreachable the app never notices.
+  if(state.settings.projectId){
+    ensureSupabase().then(async ok=>{
+      if(!ok) return;
+      await sbRestoreSession();
+      if(state.shots.signedIn){ await fetchProjects(); render(); }
+    });
+  }
+}
+
+/* Don't let a phone quietly bin a shoot: frames live in memory until they
+   are assembled, and a recording in progress has nothing on disk yet. */
+window.addEventListener('beforeunload', e=>{
+  if(state.rec.active || (state.lapse.frames && state.lapse.frames.length)){
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
+document.addEventListener('visibilitychange', ()=>{
+  // Backgrounding a tab suspends timers unpredictably. Interval shooting
+  // keeps its own end time, so it self-corrects, but say so rather than
+  // silently producing a gappy sequence.
+  if(document.hidden && state.lapse.active){
+    console.warn(APP_NAME + ': backgrounded during interval shooting — frame spacing may drift.');
+  }
+});
+window.addEventListener('orientationchange', ()=>setTimeout(measureNav, 250));
+window.addEventListener('resize', measureNav);
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
+
+/* Exposed for debugging from a console on a real device, where there is no
+   other way to see what the camera reported. */
+window.__cam = {
+  state, lapsePlan, lapseWarnings, parseCube, planFocal, captureMetadata,
+  caps: ()=>state.cam.caps, live: ()=>state.cam.live
+};
+})();
+</script>
+</body>
+</html>

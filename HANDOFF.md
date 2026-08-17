@@ -15,7 +15,7 @@ _Last updated: 2026-08-05. Written so a fresh Claude session (cloud or local) or
 
 Read `CLAUDE.md` in this folder for the full architecture (state object, render loop, storage layer, hats/roles, sync). That's the authoritative code map.
 
-`CAMERA-COMPANION.md` holds the product doc for a **second, not-yet-started app** (CineSlab Camera Companion — an on-set camera app that syncs with CineSlab). It is idea-stage and explicitly parked until CineSlab is polished; nothing in this repo builds it yet. Add ideas there rather than to this file.
+`CAMERA-COMPANION.md` holds the product doc for the **second app** (CineSlab Camera Companion — an on-set camera app that syncs with CineSlab). **Phase 1 of it is built**, as `cineslab-cam.html`, a separate self-contained page; `slate-and-page_10.html` is untouched by it and CineSlab remains the Nov 15 priority. Read §7 of that doc for what works, what was deliberately left out, and what still needs testing on a real iPhone. Add camera-app ideas there rather than to this file.
 
 ---
 
